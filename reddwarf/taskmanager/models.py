@@ -58,7 +58,8 @@ use_nova_server_volume = CONF.use_nova_server_volume
 class FreshInstanceTasks(FreshInstance):
 
     def create_instance(self, flavor_id, flavor_ram, image_id,
-                        databases, users, service_type, volume_size):
+                        databases, users, service_type, volume_size,
+                        backup_id):
         if use_nova_server_volume:
             server, volume_info = self._create_server_volume(
                 flavor_id,
@@ -78,9 +79,20 @@ class FreshInstanceTasks(FreshInstance):
             err = inst_models.InstanceTasks.BUILDING_ERROR_DNS
             self._log_and_raise(e, msg, err)
 
+        restore_volume_info = {
+                'block_device': None,
+                'device_path': None,
+                'mount_point': None,
+                'volumes': None,
+                }
+        if backup_id is not None:
+            restore_volume_info = self._create_volume(volume_size, '/dev/vdc',
+                       '/mnt/volume',  # find second usage and extract to config file
+                       'vdc')
         if server:
             self._guest_prepare(server, flavor_ram, volume_info,
-                                databases, users)
+                                databases, users, backup_id,
+                                restore_volume_info)
 
         if not self.db_info.task_status.is_error:
             self.update_db(task_status=inst_models.InstanceTasks.NONE)
@@ -154,7 +166,9 @@ class FreshInstanceTasks(FreshInstance):
         self.update_db(task_status=task_status)
         raise ReddwarfError(message=message)
 
-    def _create_volume(self, volume_size):
+    def _create_volume(self, volume_size, device_path=CONF.device_path,
+                       mount_point=CONF.mount_point,
+                       bdm=CONF.block_device_mapping):
         LOG.info("Entering create_volume")
         LOG.debug(_("Starting to create the volume for the instance"))
 
@@ -194,15 +208,12 @@ class FreshInstanceTasks(FreshInstance):
         # <id>:[<type>]:[<size(GB)>]:[<delete_on_terminate>]
         # setting the delete_on_terminate instance to true=1
         mapping = "%s:%s:%s:%s" % (v_ref.id, '', v_ref.size, 1)
-        bdm = CONF.block_device_mapping
         block_device = {bdm: mapping}
         volumes = [{'id': v_ref.id,
                     'size': v_ref.size}]
         LOG.debug("block_device = %s" % block_device)
         LOG.debug("volume = %s" % volumes)
 
-        device_path = CONF.device_path
-        mount_point = CONF.mount_point
         LOG.debug(_("device_path = %s") % device_path)
         LOG.debug(_("mount_point = %s") % mount_point)
 
@@ -227,12 +238,18 @@ class FreshInstanceTasks(FreshInstance):
         return server
 
     def _guest_prepare(self, server, flavor_ram, volume_info,
-                       databases, users):
+                       databases, users, backup_id, restore_volume_info):
         LOG.info("Entering guest_prepare.")
         # Now wait for the response from the create to do additional work
         self.guest.prepare(flavor_ram, databases, users,
                            device_path=volume_info['device_path'],
-                           mount_point=volume_info['mount_point'])
+                           mount_point=volume_info['mount_point'],
+                           backup_id,
+                           restore_device_path=restore_volume_info[
+                                'device_path'],
+                           restore_mount_point=restore_volume_info[
+                                'mount_point'],
+                           )
 
     def _create_dns_entry(self):
         LOG.debug("%s: Creating dns entry for instance: %s" %
@@ -352,6 +369,20 @@ class BuiltInstanceTasks(BuiltInstance):
     def migrate(self):
         action = MigrateAction(self)
         action.execute()
+
+    def teardown_backup(self):
+        # do a volume detach/delete
+        pass
+
+    def create_backup(self):
+        # create a temp volume
+        # nova list
+        # nova show
+        # check in progress - make sure no other snapshot creation in progress
+        # volume create
+        # volume attach
+        # call GA.create_backup()
+        pass
 
     def reboot(self):
         try:
