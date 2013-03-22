@@ -238,3 +238,7 @@ class API(proxy.RpcProxy):
     def update_guest(self):
         """Make a synchronous call to update the guest agent."""
         self._call("update_guest", AGENT_HIGH_TIMEOUT)
+
+    def create_backup(self, backup_id, volume):
+        LOG.debug(_("Create Backup on for Backup %s"), backup_id)
+        self._cast("create_backup", backup_id=backup_id, volume=volume)

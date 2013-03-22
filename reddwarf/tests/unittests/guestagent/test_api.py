@@ -11,8 +11,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License
+from mockito import when, any, verify
+import mockito.matchers
 import testtools
 from mock import Mock, MagicMock
+from testtools.matchers import KeysEqual
 from reddwarf.openstack.common import rpc
 from reddwarf.openstack.common.rpc import proxy
 from reddwarf.openstack.common.rpc import impl_kombu as kombu
@@ -22,7 +25,6 @@ from reddwarf.guestagent import api
 
 
 class ApiTest(testtools.TestCase):
-
     def setUp(self):
         super(ApiTest, self).setUp()
         self.api = api.API(Mock, Mock)
@@ -137,8 +139,31 @@ class ApiTest(testtools.TestCase):
         self.assertEqual(1, self.rpc_call.call_count)
 
     def test_update_guest(self):
+        proxy.RpcProxy.call = self.origin_rpc_call
+        when(rpc).call(any(), any(), any(), any(), any(int)).thenReturn(None)
         self.api.update_guest()
-        self.assertEqual(1, self.rpc_call.call_count)
+        verify(rpc, times=1).call(any(), any(), DictMatcher(
+            {'version': any(), 'method': 'update_guest', 'args': {}}),any(int))
+
+    def test_create_backup(self):
+        proxy.RpcProxy.cast = self.origin_rpc_cast
+        when(rpc).cast(any(), any(), any()).thenReturn(None)
+        backup_id = '12e3f3afeadf2df222'
+        self.api.create_backup(backup_id, '/mnt/vdc')
+        verify(rpc, times=1).cast(any(), any(), DictMatcher(
+            {'version': any(), 'method': 'create_backup',
+             'args': {'backup_id': backup_id, 'volume': '/mnt/vdc'''}}))
+
+
+class DictMatcher(mockito.matchers.Matcher):
+    def __init__(self, wanted_dict):
+        self.wanted_dict = KeysEqual(wanted_dict)
+
+    def matches(self, arg):
+        return self.wanted_dict.match(arg)
+
+    def __repr__(self):
+        return "<Dict: %s>" % self.wanted_dict
 
 
 class CastWithConsumerTest(testtools.TestCase):
