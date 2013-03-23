@@ -76,6 +76,7 @@ class API(proxy.RpcProxy):
 
     def _cast_with_consumer(self, method_name, **kwargs):
         try:
+            conn = None
             conn = rpc.create_connection(new=True)
             conn.create_consumer(self._get_routing_key(), None, fanout=False)
         except Exception as e:
@@ -148,7 +149,7 @@ class API(proxy.RpcProxy):
     def delete_user(self, user):
         """Make an asynchronous call to delete an existing database user"""
         LOG.debug(_("Deleting user %s for Instance %s"), user, self.id)
-        return self._cast("delete_user", user=user)
+        self._cast("delete_user", user=user)
 
     def create_database(self, databases):
         """Make an asynchronous call to create a new database
@@ -232,6 +233,7 @@ class API(proxy.RpcProxy):
         """Make a synchronous call to get volume info for the container"""
         LOG.debug(_("Check Volume Info on Instance %s"), self.id)
         # self._check_for_hearbeat()
+        # TODO (juice) does default fs_path need to be configurable?
         return self._call("get_filesystem_stats", AGENT_LOW_TIMEOUT,
                           fs_path="/var/lib/mysql")
 
@@ -240,5 +242,6 @@ class API(proxy.RpcProxy):
         self._call("update_guest", AGENT_HIGH_TIMEOUT)
 
     def create_backup(self, backup_id, volume):
-        LOG.debug(_("Create Backup on for Backup %s"), backup_id)
+        """Make async call to create a full backup of this instance"""
+        LOG.debug(_("Create Backup %s for Instance %s"), backup_id, self.id)
         self._cast("create_backup", backup_id=backup_id, volume=volume)
