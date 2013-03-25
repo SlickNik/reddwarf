@@ -17,13 +17,13 @@
 
 from reddwarf.common import cfg
 from novaclient.v1_1.client import Client
+from swiftclient.client import Connection
 
 
 CONF = cfg.CONF
 COMPUTE_URL = CONF.nova_compute_url
 PROXY_AUTH_URL = CONF.reddwarf_auth_url
 VOLUME_URL = CONF.nova_volume_url
-PROXY_AUTH_URL = CONF.reddwarf_auth_url
 
 
 def create_dns_client(context):
@@ -56,9 +56,16 @@ def create_nova_volume_client(context):
     return client
 
 
-if CONF.remote_implementation == "fake":
-    # Override the functions above with fakes.
+def create_swift_client(context):
+    client = Connection(authurl=PROXY_AUTH_URL,
+                        preauthurl=context.get('preauth_url'),
+                        preauthtoken=context.get('preauth_token'),
+                        tenant_name=context.tenant,
+                        auth_version='2.0')
+    return client
 
+# Override the functions above with fakes.
+if CONF.remote_implementation == "fake":
     from reddwarf.tests.fakes.nova import fake_create_nova_client
     from reddwarf.tests.fakes.nova import fake_create_nova_volume_client
     from reddwarf.tests.fakes.guestagent import fake_create_guest_client
