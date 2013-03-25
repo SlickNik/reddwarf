@@ -11,11 +11,11 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License
-from mockito import when, any, verify, unstub, mock, verifyZeroInteractions
+from mockito import when, any, verify, unstub, mock, verifyZeroInteractions,\
+    never
 import mockito.matchers
 import testtools
-from mock import Mock
-from testtools.matchers import KeysEqual, Is, Contains
+from testtools.matchers import KeysEqual, Is
 
 import reddwarf.openstack.common.rpc as rpc
 from reddwarf.guestagent import models as agent_models
@@ -197,9 +197,15 @@ class ApiTest(testtools.TestCase):
         self._verify_rpc_call(exp_msg)
 
     def test_create_backup(self):
-        exp_msg = RpcMsgMatcher('create_backup', 'backup_id', 'volume')
+        exp_msg = RpcMsgMatcher('create_backup', 'backup_id', 'device_path')
         self._mock_rpc_cast(exp_msg)
         self.api.create_backup('123', '/mnt/vdc')
+        self._verify_rpc_cast(exp_msg)
+
+    def test_create_backup(self):
+        exp_msg = RpcMsgMatcher('create_backup', 'backup_id', 'device_path')
+        self._mock_rpc_cast(exp_msg)
+        self.api.create_backup('123')
         self._verify_rpc_cast(exp_msg)
 
     def test_prepare(self):
@@ -242,7 +248,7 @@ class ApiTest(testtools.TestCase):
 
         verify(rpc).create_connection(new=True)
         verifyZeroInteractions(mock_conn)
-        verify(rpc, times=0).cast(any(), any(), exp_msg)
+        verify(rpc, never).cast(any(), any(), exp_msg)
 
     def _mock_rpc_call(self, exp_msg, resp=None):
         when(rpc).call(any(), any(), exp_msg, any(int)).thenReturn(resp)
@@ -260,7 +266,7 @@ class ApiTest(testtools.TestCase):
 class CastWithConsumerTest(testtools.TestCase):
     def setUp(self):
         super(CastWithConsumerTest, self).setUp()
-        self.api = api.API(Mock, 'instance-id-x23d2d')
+        self.api = api.API(mock(), 'instance-id-x23d2d')
 
     def tearDown(self):
         super(CastWithConsumerTest, self).tearDown()

@@ -241,7 +241,8 @@ class API(proxy.RpcProxy):
         """Make a synchronous call to update the guest agent."""
         self._call("update_guest", AGENT_HIGH_TIMEOUT)
 
-    def create_backup(self, backup_id, volume):
+    def create_backup(self, backup_id, device_path=None):
         """Make async call to create a full backup of this instance"""
         LOG.debug(_("Create Backup %s for Instance %s"), backup_id, self.id)
-        self._cast("create_backup", backup_id=backup_id, volume=volume)
+        self._cast("create_backup", backup_id=backup_id,
+                   device_path=device_path)
