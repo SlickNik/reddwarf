@@ -244,7 +244,6 @@ class ApiTest(testtools.TestCase):
         verifyZeroInteractions(mock_conn)
         verify(rpc, times=0).cast(any(), any(), exp_msg)
 
-
     def _mock_rpc_call(self, exp_msg, resp=None):
         when(rpc).call(any(), any(), exp_msg, any(int)).thenReturn(resp)
 
