@@ -1,9 +1,10 @@
-from reddwarf.guestagent import dbaas
+from reddwarf.guestagent import dbaas, backup
 from reddwarf.guestagent import volume
+from reddwarf.guestagent.volume import VolumeDevice
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common import periodic_task
 from reddwarf.openstack.common.gettextutils import _
-from reddwarf.instance import models as rd_models
+
 import os
 LOG = logging.getLogger(__name__)
 
@@ -105,3 +106,27 @@ class Manager(periodic_task.PeriodicTasks):
     def get_filesystem_stats(self, context, fs_path):
         """ Gets the filesystem stats for the path given """
         return dbaas.Interrogator().get_filesystem_volume_stats(fs_path)
+
+    def create_backup(self, backup_id, device_path=None):
+        """
+        Entry point for initiating a backup for this guest agents db instance.
+        The call currently blocks until the backup is complete or errors. If
+        device_path is specified, it will be mounted based to a point specified
+        in configuration.
+
+        :param backup_id: the db instance id of the backup task
+        :param device_path: device path where to mount the volume (if provided)
+        """
+        if device_path:
+            self._create_backup_with_volume(backup_id, device_path)
+        else:
+            backup.execute(backup_id)
+
+    def _create_backup_with_volume(self, backup_id, device_path):
+        vol_dev = VolumeDevice(device_path=device_path)
+        vol_dev.mount('/mnt/tmp')
+        try:
+            backup.execute(backup_id, '/mnt/tmp')
+        finally:
+            LOG.info('Unmounting Temporary Backup Volume')
+            vol_dev.unmount()

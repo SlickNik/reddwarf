@@ -11,12 +11,12 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License
-
+from mockito import verify, when, any, never, unstub
 from reddwarf.guestagent.manager import Manager
-from reddwarf.guestagent import dbaas
+from reddwarf.guestagent import dbaas, backup
 from reddwarf.guestagent import volume
+from reddwarf.guestagent.volume import VolumeDevice
 import testtools
-from reddwarf.instance import models as rd_models
 import os
 from mock import Mock, MagicMock
 
@@ -39,6 +39,7 @@ class GuestAgentManagerTest(testtools.TestCase):
 
     def tearDown(self):
         super(GuestAgentManagerTest, self).tearDown()
+        unstub()
         dbaas.MySqlAppStatus = self.origin_MySqlAppStatus
         os.path.exists = self.origin_os_path_exists
         volume.VolumeDevice.format = self.origin_format
@@ -103,6 +104,30 @@ class GuestAgentManagerTest(testtools.TestCase):
         dbaas.MySqlAdmin.is_root_enabled = MagicMock()
         self.manager.is_root_enabled(self.context)
         self.assertEqual(1, dbaas.MySqlAdmin.is_root_enabled.call_count)
+
+    def test_create_backup(self):
+        when(VolumeDevice).mount('/mnt/tmp').thenReturn(None)
+        when(VolumeDevice).unmount().thenReturn(None)
+        when(backup).execute('backup_id_123').thenReturn(None)
+
+        # entry point
+        Manager().create_backup('backup_id_123', '/dev/vdc')
+
+        verify(VolumeDevice).mount('/mnt/tmp')
+        verify(backup).execute('backup_id_123', '/mnt/tmp')
+        verify(VolumeDevice).unmount()
+
+    def test_create_backup_without_volume(self):
+        when(VolumeDevice).mount(None).thenRaise(Exception)
+        when(VolumeDevice).unmount().thenRaise(Exception)
+        when(backup).execute('backup_id_123').thenReturn(None)
+
+        # entry point
+        Manager().create_backup('backup_id_123')
+
+        verify(VolumeDevice, never).mount(any())
+        verify(VolumeDevice, never).unmount()
+        verify(backup).execute('backup_id_123')
 
     def test_prepare_device_path_true(self):
         self._prepare_dynamic()
