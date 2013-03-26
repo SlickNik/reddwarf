@@ -33,20 +33,27 @@ class StoreBySwift(Storage):
         :param snapshot_content:
         :return:
         """
-        RemoteSwift.put(context=context,
-                        container=container,
-                        name=snapshot_name,
-                        contents=snapshot_content)
+        return RemoteSwift.put(context=context,
+                               container=container,
+                               name=snapshot_name,
+                               file_to_upload=snapshot_content)
 
     @classmethod
-    def getBackUp(cls, context, container, name):
-        #TODO: add relative path to the file
-        snapshot = RemoteSwift.get(context=context, container=container, name=name)
-
+    def getBackUp(cls, context, container, name, out_file):
+        """
+        :param cls:
+        :param context:
+        :param container:
+        :param name:
+        :param out_file:
+        :return:
+        """
+        file = RemoteSwift.get(context=context, container=container, name=name, out_file=out_file)
+        return file
         #uncompress
-        utils.execute("tar -zxvf %s" % snapshot)
-        # clean up .gz
-        utils.execute('sudo rm -rf %s' % snapshot)
+#        utils.execute("tar -zxvf %s" % file)
+#        clean up .gz
+#        utils.execute('sudo rm -rf %s' % snapshot)
 
 
 

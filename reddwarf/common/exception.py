@@ -213,3 +213,18 @@ class TenantQuotaNotFound(QuotaNotFound):
 
 class QuotaResourceUnknown(QuotaNotFound):
     message = _("Unknown quota resources %(unknown)s.")
+
+class BackupUploadError(ReddwarfError):
+    message = _("Unable to upload Backup onto swift")
+
+
+class BackupDownloadError(ReddwarfError):
+    message = _("Unable to download Backup from swift")
+
+
+class BackupCreationError(ReddwarfError):
+    message = _("Unable to create Backup")
+
+
+class BackupUpdateError(ReddwarfError):
+    message = _("Unable to update Backup table in db")
