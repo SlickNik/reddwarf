@@ -102,3 +102,23 @@ class NovaRemoteModelBase(ModelBase):
             return [self._data_item(item) for item in self._data_object]
         else:
             return self._data_item(self._data_object)
+
+
+class SwiftRemoteModelBase(ModelBase):
+    _data_fields = None
+
+    @classmethod
+    def get_client(cls, context):
+        return remote.create_swift_client(context)
+
+    def _data_item(self, data_object):
+        data_fields = self._data_fields + self._auto_generated_attrs
+        return dict([(field, getattr(data_object, field))
+                     for field in data_fields])
+    def data(self, **options):
+        if self._data_object is None:
+            raise LookupError("data object is None")
+        if isinstance(self._data_object, list):
+            return [self._data_item(item) for item in self._data_object]
+        else:
+            return self._data_item(self._data_object)
