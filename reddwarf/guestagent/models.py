@@ -23,12 +23,9 @@ from reddwarf.db import models as dbmodels
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
 
-
 from reddwarf.common.models import SwiftRemoteModelBase
 from reddwarf.common.remote import create_swift_client
 from swiftclient.client import ClientException
-
-from reddwarf.common import exception
 
 LOG = logging.getLogger(__name__)
 
@@ -80,15 +77,14 @@ class RemoteSwift(SwiftRemoteModelBase):
             msg = "Snapshot authentication info is missing"
             raise exception.InvalidModelError(msg)
 
-
     @classmethod
     def put(cls, context, container, name, contents):
         """upload a snapshot onto remote swift container"""
         client = create_swift_client(context)
         try:
             client.put_object(container=container,
-                obj=name,
-                contents=contents)
+                              obj=name,
+                              contents=contents)
         except ClientException as ex:
             LOG.exception("Failed to upload snapshot %s onto "
                           "remote swift container:" % name)

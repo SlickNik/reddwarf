@@ -71,17 +71,14 @@ class FreshInstanceTasks(FreshInstance):
             err = inst_models.InstanceTasks.BUILDING_ERROR_DNS
             self._log_and_raise(e, msg, err)
 
-        restore_volume_info = {
-                'block_device': None,
-                'device_path': None,
-                'mount_point': None,
-                'volumes': None,
-                }
+        restore_volume_info = {'block_device': None,
+                               'device_path': None,
+                               'mount_point': None,
+                               'volumes': None}
         if backup_id is not None:
             # find second usage and extract to config file
             restore_volume_info = self._create_volume(volume_size, '/dev/vdc',
-                       '/mnt/volume',
-                       'vdc')
+                                                      '/mnt/volume', 'vdc')
         if server:
             self._guest_prepare(server, flavor_ram, volume_info,
                                 databases, users, backup_id,

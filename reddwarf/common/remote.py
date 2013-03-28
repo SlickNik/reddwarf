@@ -63,6 +63,7 @@ def create_swift_client(context):
                         tenant_name=context.tenant)
     return client
 
+
 # Override the functions above with fakes.
 if CONF.remote_implementation == "fake":
     from reddwarf.tests.fakes.nova import fake_create_nova_client
