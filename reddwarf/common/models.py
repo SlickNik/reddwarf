@@ -115,6 +115,7 @@ class SwiftRemoteModelBase(ModelBase):
         data_fields = self._data_fields + self._auto_generated_attrs
         return dict([(field, getattr(data_object, field))
                      for field in data_fields])
+
     def data(self, **options):
         if self._data_object is None:
             raise LookupError("data object is None")

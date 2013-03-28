@@ -23,7 +23,7 @@ class BackupAgent(object):
     def execute_backup(self, backup_id, mount_point=None):
         LOG.debug("Searching for backup instance %s", backup_id)
         backup = DBBackup.find_by(id=backup_id)
-        LOG.info("Setting task state to %s for instance %s", BackupState.BUILDING,
-                 backup.instance_id)
+        LOG.info("Setting task state to %s for instance %s",
+                 BackupState.BUILDING, backup.instance_id)
         backup.state(BackupState.BUILDING)
         backup.save()

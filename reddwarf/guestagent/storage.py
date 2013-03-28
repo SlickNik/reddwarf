@@ -6,6 +6,7 @@ LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
 
+
 class Storage(object):
     """where and how to store the backups"""
 
@@ -13,11 +14,11 @@ class Storage(object):
         pass
 
     @classmethod
-    def saveBackUp(self):
+    def saveBackUp(cls):
         pass
 
     @classmethod
-    def getBackUp(self):
+    def getBackUp(cls):
         pass
 
 
@@ -48,16 +49,10 @@ class StoreBySwift(Storage):
         :param out_file:
         :return:
         """
-        file = RemoteSwift.get(context=context, container=container, name=name, out_file=out_file)
+        file = RemoteSwift.get(context=context, container=container, name=name,
+                               out_file=out_file)
         return file
         #uncompress
 #        utils.execute("tar -zxvf %s" % file)
 #        clean up .gz
 #        utils.execute('sudo rm -rf %s' % snapshot)
-
-
-
-
-
-
-

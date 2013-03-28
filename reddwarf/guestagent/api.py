@@ -203,14 +203,15 @@ class API(proxy.RpcProxy):
 
     def prepare(self, memory_mb, databases, users,
                 device_path='/dev/vdb', mount_point='/mnt/volume',
-                backup_id=None, restore_device_path=None,
-                restore_mount_point=None):
+                backup_id=None):
         """Make an asynchronous call to prepare the guest
-           as a database container"""
+           as a database container optionally includes a backup id for restores
+        """
         LOG.debug(_("Sending the call to prepare the Guest"))
         self._cast_with_consumer(
             "prepare", databases=databases, memory_mb=memory_mb,
-            users=users, device_path=device_path, mount_point=mount_point)
+            users=users, device_path=device_path, mount_point=mount_point,
+            backup_id=backup_id)
 
     def restart(self):
         """Restart the MySQL server."""
