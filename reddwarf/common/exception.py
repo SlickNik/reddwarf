@@ -230,3 +230,8 @@ class BackupCreationError(ReddwarfError):
 
 class BackupUpdateError(ReddwarfError):
     message = _("Unable to update Backup table in db")
+
+
+class SwiftAuthError(ReddwarfError):
+    message = _("Swift account not accessible for tenant %(tenant_id)s.")
+

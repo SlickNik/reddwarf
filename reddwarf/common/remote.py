@@ -24,6 +24,7 @@ CONF = cfg.CONF
 COMPUTE_URL = CONF.nova_compute_url
 PROXY_AUTH_URL = CONF.reddwarf_auth_url
 VOLUME_URL = CONF.nova_volume_url
+OBJECT_STORE_URL = CONF.swift_url
 
 
 def create_dns_client(context):
@@ -64,11 +65,9 @@ def create_swift_client(context):
     return client
 
 def create_swift_client(context):
-    client = Connection(authurl=PROXY_AUTH_URL,
-                        preauthurl=context.get('preauth_url'),
-                        preauthtoken=context.get('preauth_token'),
-                        tenant_name=context.tenant,
-                        auth_version='2.0')
+    client = Connection(preauthurl=OBJECT_STORE_URL + context.tenant,
+                        preauthtoken=context.auth_tok,
+                        tenant_name=context.tenant)
     return client
 
 # Override the functions above with fakes.

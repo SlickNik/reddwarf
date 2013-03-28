@@ -14,14 +14,11 @@
 
 import routes
 
-from reddwarf.common import exception
 from reddwarf.common import wsgi
-from reddwarf.extensions.mgmt.host.instance import service as hostservice
 from reddwarf.flavor.service import FlavorController
 from reddwarf.instance.service import InstanceController
 from reddwarf.limits.service import LimitsController
-from reddwarf.openstack.common import log as logging
-from reddwarf.openstack.common import rpc
+from reddwarf.backup.service import BackupsController
 from reddwarf.versions import VersionsController
 
 
@@ -34,6 +31,7 @@ class API(wsgi.Router):
         self._flavor_router(mapper)
         self._versions_router(mapper)
         self._limits_router(mapper)
+        self._backups_router(mapper)
 
     def _versions_router(self, mapper):
         versions_resource = VersionsController().create_resource()
@@ -54,6 +52,12 @@ class API(wsgi.Router):
         limits_resource = LimitsController().create_resource()
         path = "/{tenant_id}/limits"
         mapper.resource("limits", path, controller=limits_resource)
+
+    def _backups_router(self, mapper):
+        backups_resource = BackupsController().create_resource()
+        path = "/{tenant_id}/backups"
+        mapper.resource("backups", path, controller=backups_resource,
+                        member={'action': 'POST'})
 
 
 def app_factory(global_conf, **local_conf):

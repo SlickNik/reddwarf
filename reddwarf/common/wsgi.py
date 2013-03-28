@@ -358,6 +358,7 @@ class Controller(object):
         ],
         webob.exc.HTTPUnauthorized: [
             exception.Forbidden,
+            exception.SwiftAuthError,
         ],
         webob.exc.HTTPBadRequest: [
             exception.InvalidModelError,

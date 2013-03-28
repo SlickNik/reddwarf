@@ -180,7 +180,6 @@ class InstanceController(wsgi.Controller):
         name = body['instance']['name']
         flavor_ref = body['instance']['flavorRef']
         flavor_id = utils.get_id_from_href(flavor_ref)
-        backup_id = body['instance'].get('backup_id', [])
         databases = populate_databases(body['instance'].get('databases', []))
         users = populate_users(body['instance'].get('users', []))
         if body['instance'].get('volume', None) is not None:
@@ -191,9 +190,15 @@ class InstanceController(wsgi.Controller):
         else:
             volume_size = None
 
+        if body['instance'].get('restorePoint', None) is not None:
+            backup_ref = body['instance']['restorePoint']['backupRef']
+        else:
+            backup_ref = None
+
         instance = models.Instance.create(context, name, flavor_id,
                                           image_id, databases, users,
-                                          service_type, volume_size, backup_id)
+                                          service_type, volume_size,
+                                          backup_ref)
 
         view = views.InstanceDetailView(instance, req=req)
         return wsgi.Result(view.data(), 200)

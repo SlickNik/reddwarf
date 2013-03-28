@@ -42,6 +42,7 @@ common_opts = [
                help='Remote implementation for using fake integration code'),
     cfg.StrOpt('nova_compute_url', default='http://localhost:8774/v2'),
     cfg.StrOpt('nova_volume_url', default='http://localhost:8776/v2'),
+    cfg.StrOpt('swift_url', default='http://localhost:8080/v1/AUTH_'),
     cfg.StrOpt('reddwarf_auth_url', default='http://0.0.0.0:5000/v2.0'),
     cfg.StrOpt('backup_swift_container', default='DBaaS-backup'),
     cfg.StrOpt('host', default='0.0.0.0'),
