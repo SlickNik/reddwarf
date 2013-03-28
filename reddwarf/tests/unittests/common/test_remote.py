@@ -26,8 +26,7 @@ class TestRemote(testtools.TestCase):
         mock_resp = mock(dict)
         when(swiftclient.client.Connection).get_container('bob').thenReturn(
             ["text", mock_resp])
-        mock_ctx = mock(ReddwarfContext)
-        client = remote.create_swift_client(mock_ctx)
+        client = remote.create_swift_client(ReddwarfContext(tenant='123'))
         headers, container = client.get_container('bob')
         self.assertIs(headers, "text")
         self.assertIs(container, mock_resp)
@@ -90,7 +89,7 @@ class TestRemote(testtools.TestCase):
         swift_stub.without_container(cont_name)
         with testtools.ExpectedException(swiftclient.ClientException):
             conn.get_container(cont_name)
-        # ensure there are no more containers in account
+            # ensure there are no more containers in account
         self.assertThat(len(conn.get_account()[1]), Is(0))
 
     def test_one_object(self):

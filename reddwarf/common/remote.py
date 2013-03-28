@@ -56,13 +56,6 @@ def create_nova_volume_client(context):
 
     return client
 
-def create_swift_client(context):
-    from swiftclient.client import Connection
-
-    client = Connection(preauthurl=context.get('preauth_url'),
-        preauthtoken=context.get('preauth_token'),
-        tenant_name=context.get('tenant'))
-    return client
 
 def create_swift_client(context):
     client = Connection(preauthurl=OBJECT_STORE_URL + context.tenant,

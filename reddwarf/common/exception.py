@@ -234,4 +234,3 @@ class BackupUpdateError(ReddwarfError):
 
 class SwiftAuthError(ReddwarfError):
     message = _("Swift account not accessible for tenant %(tenant_id)s.")
-
