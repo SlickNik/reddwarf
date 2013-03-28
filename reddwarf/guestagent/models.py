@@ -91,7 +91,7 @@ class RemoteSwift(SwiftRemoteModelBase):
                 contents=contents)
         except ClientException as ex:
             LOG.exception("Failed to upload snapshot %s onto "
-                          "remote swift container:") %name
+                          "remote swift container:" % name)
             raise exception.BackupUploadError(str(ex))
 
     @classmethod
@@ -102,5 +102,5 @@ class RemoteSwift(SwiftRemoteModelBase):
             return client.get_object(container=container, obj=name)
         except ClientException as ex:
             LOG.exception("Failed to download snapshot %s from "
-                          "remote swift container:") %name
+                          "remote swift container:" % name)
             raise exception.BackupDownloadError(str(ex))

@@ -213,7 +213,23 @@ class ApiTest(testtools.TestCase):
         when(rpc).create_connection(new=True).thenReturn(mock_conn)
         when(mock_conn).create_consumer(any(), any(), any()).thenReturn(None)
         exp_msg = RpcMsgMatcher('prepare', 'memory_mb', 'databases', 'users',
-                                'device_path', 'mount_point')
+                                'device_path', 'mount_point', 'backup_id')
+        when(rpc).cast(any(), any(), exp_msg).thenReturn(None)
+
+        self.api.prepare('2048', 'db1', 'user1', '/dev/vdt', '/mnt/opt',
+                         'bkup-1232')
+
+        verify(rpc).create_connection(new=True)
+        verify(mock_conn).create_consumer(self.api._get_routing_key(), None,
+                                          fanout=False)
+        verify(rpc).cast(any(), any(), exp_msg)
+
+    def test_prepare_with_backup(self):
+        mock_conn = mock()
+        when(rpc).create_connection(new=True).thenReturn(mock_conn)
+        when(mock_conn).create_consumer(any(), any(), any()).thenReturn(None)
+        exp_msg = RpcMsgMatcher('prepare', 'memory_mb', 'databases', 'users',
+                                'device_path', 'mount_point', 'backup_id')
         when(rpc).cast(any(), any(), exp_msg).thenReturn(None)
 
         self.api.prepare('2048', 'db1', 'user1', '/dev/vdt', '/mnt/opt')

@@ -12,34 +12,26 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-import time
-from eventlet import greenthread
-from datetime import datetime
 import traceback
+
+from eventlet import greenthread
 from novaclient import exceptions as nova_exceptions
 from reddwarf.common import cfg
-from reddwarf.common import remote
 from reddwarf.common import utils
 from reddwarf.common.exception import GuestError
 from reddwarf.common.exception import PollTimeOut
 from reddwarf.common.exception import VolumeCreationFailure
-from reddwarf.common.exception import NotFound
 from reddwarf.common.exception import ReddwarfError
 from reddwarf.common.remote import create_dns_client
 from reddwarf.common.remote import create_nova_client
 from reddwarf.common.remote import create_nova_volume_client
-from reddwarf.common.remote import create_guest_client
 from reddwarf.common.utils import poll_until
-from reddwarf.extensions.mysql.common import populate_databases
-from reddwarf.extensions.mysql.common import populate_users
 from reddwarf.instance import models as inst_models
-from reddwarf.instance.models import DBInstance
 from reddwarf.instance.models import BuiltInstance
 from reddwarf.instance.models import FreshInstance
 from reddwarf.instance.models import InstanceStatus
 from reddwarf.instance.models import InstanceServiceStatus
 from reddwarf.instance.models import ServiceStatuses
-from reddwarf.instance.tasks import InstanceTasks
 from reddwarf.instance.views import get_ip_address
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
@@ -86,8 +78,9 @@ class FreshInstanceTasks(FreshInstance):
                 'volumes': None,
                 }
         if backup_id is not None:
+            # find second usage and extract to config file
             restore_volume_info = self._create_volume(volume_size, '/dev/vdc',
-                       '/mnt/volume',  # find second usage and extract to config file
+                       '/mnt/volume',
                        'vdc')
         if server:
             self._guest_prepare(server, flavor_ram, volume_info,
@@ -238,18 +231,14 @@ class FreshInstanceTasks(FreshInstance):
         return server
 
     def _guest_prepare(self, server, flavor_ram, volume_info,
-                       databases, users, backup_id, restore_volume_info):
+                       databases, users, backup_id=None,
+                       restore_volume_info=None):
         LOG.info("Entering guest_prepare.")
         # Now wait for the response from the create to do additional work
         self.guest.prepare(flavor_ram, databases, users,
                            device_path=volume_info['device_path'],
                            mount_point=volume_info['mount_point'],
-                           backup_id=backup_id,
-                           restore_device_path=restore_volume_info[
-                                'device_path'],
-                           restore_mount_point=restore_volume_info[
-                                'mount_point'],
-                           )
+                           backup_id=backup_id)
 
     def _create_dns_entry(self):
         LOG.debug("%s: Creating dns entry for instance: %s" %
