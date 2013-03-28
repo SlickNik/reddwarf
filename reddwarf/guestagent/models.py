@@ -24,6 +24,12 @@ from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
 
 
+from reddwarf.common.models import SwiftRemoteModelBase
+from reddwarf.common.remote import create_swift_client
+from swiftclient.client import ClientException
+
+from reddwarf.common import exception
+
 LOG = logging.getLogger(__name__)
 
 CONF = cfg.CONF
@@ -64,3 +70,37 @@ class AgentHeartBeat(dbmodels.DatabaseModelBase):
     def is_active(agent):
         return (datetime.now() - agent.updated_at <
                 timedelta(seconds=AGENT_HEARTBEAT))
+
+
+class RemoteSwift(SwiftRemoteModelBase):
+    _data_fields = ['container', 'name', 'storage_uri']
+
+    def __init__(self, context=None):
+        if context is None:
+            msg = "Snapshot authentication info is missing"
+            raise exception.InvalidModelError(msg)
+
+
+    @classmethod
+    def put(cls, context, container, name, contents):
+        """upload a snapshot onto remote swift container"""
+        client = create_swift_client(context)
+        try:
+            client.put_object(container=container,
+                obj=name,
+                contents=contents)
+        except ClientException as ex:
+            LOG.exception("Failed to upload snapshot %s onto "
+                          "remote swift container:") %name
+            raise exception.BackupUploadError(str(ex))
+
+    @classmethod
+    def get(cls, context, container, name):
+        """download a snapshot from remote swift container"""
+        client = create_swift_client(context)
+        try:
+            return client.get_object(container=container, obj=name)
+        except ClientException as ex:
+            LOG.exception("Failed to download snapshot %s from "
+                          "remote swift container:") %name
+            raise exception.BackupDownloadError(str(ex))

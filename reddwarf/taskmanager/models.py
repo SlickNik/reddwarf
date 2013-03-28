@@ -244,7 +244,7 @@ class FreshInstanceTasks(FreshInstance):
         self.guest.prepare(flavor_ram, databases, users,
                            device_path=volume_info['device_path'],
                            mount_point=volume_info['mount_point'],
-                           backup_id,
+                           backup_id=backup_id,
                            restore_device_path=restore_volume_info[
                                 'device_path'],
                            restore_mount_point=restore_volume_info[
