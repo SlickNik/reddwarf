@@ -43,6 +43,7 @@ common_opts = [
     cfg.StrOpt('nova_compute_url', default='http://localhost:8774/v2'),
     cfg.StrOpt('nova_volume_url', default='http://localhost:8776/v2'),
     cfg.StrOpt('reddwarf_auth_url', default='http://0.0.0.0:5000/v2.0'),
+    cfg.StrOpt('backup_swift_container', default='DBaaS-backup'),
     cfg.StrOpt('host', default='0.0.0.0'),
     cfg.IntOpt('report_interval', default=10),
     cfg.IntOpt('periodic_interval', default=60),
@@ -105,6 +106,8 @@ common_opts = [
     cfg.IntOpt('http_post_rate', default=200),
     cfg.IntOpt('http_delete_rate', default=200),
     cfg.IntOpt('http_put_rate', default=200),
+    cfg.BoolOpt('hostname_require_ipv4', default=True,
+                help="Require user hostnames to be IPv4 addresses."),
 ]
 
 

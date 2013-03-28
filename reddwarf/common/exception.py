@@ -20,6 +20,7 @@ from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common import exception as openstack_exception
 from reddwarf.openstack.common import processutils
 from reddwarf.openstack.common.gettextutils import _
+
 from webob import exc
 
 
@@ -213,6 +214,7 @@ class TenantQuotaNotFound(QuotaNotFound):
 
 class QuotaResourceUnknown(QuotaNotFound):
     message = _("Unknown quota resources %(unknown)s.")
+
 
 class BackupUploadError(ReddwarfError):
     message = _("Unable to upload Backup onto swift")
