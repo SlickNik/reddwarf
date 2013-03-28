@@ -97,9 +97,11 @@ class Backup(object):
         try:
             db_info = DBBackup.find_by(id=id, deleted=False)
             db_info.update(deleted=True, deleted_at=utils.utcnow())
+        except exception.NotFound:
+            raise exception.NotFound(uuid=id)
         except exception.ReddwarfError as ex:
             LOG.exception("Backup record cannot be updated for "
-                          "backup %s :") % id
+                          "backup: %s", id)
             raise exception.BackupUpdateError(str(ex))
 
 

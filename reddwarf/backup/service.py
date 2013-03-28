@@ -42,10 +42,10 @@ class BackupsController(wsgi.Controller):
         context = req.environ[wsgi.CONTEXT_KEY]
         self._verify_swift_auth_token(context)
         data = body['backup']
-        instanceID = data['instanceID']
-        backup = model.create(context, instanceID,
+        instance_id = data['instance']
+        backup = model.create(context, instance_id,
                               data['name'], data['description'])
-        task_api.API(context).create_backup(instanceID)
+        task_api.API(context).create_backup(instance_id)
         return wsgi.Result(views.BackupView(backup).data(), 202)
 
     def delete(self, req, tenant_id, id):
