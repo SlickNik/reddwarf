@@ -231,7 +231,8 @@ class FreshInstanceTasks(FreshInstance):
         return server
 
     def _guest_prepare(self, server, flavor_ram, volume_info,
-                       databases, users, backup_id, restore_volume_info):
+                       databases, users, backup_id=None,
+                       restore_volume_info=None):
         LOG.info("Entering guest_prepare.")
         # Now wait for the response from the create to do additional work
         self.guest.prepare(flavor_ram, databases, users,
