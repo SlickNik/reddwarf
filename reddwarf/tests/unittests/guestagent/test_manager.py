@@ -106,27 +106,10 @@ class GuestAgentManagerTest(testtools.TestCase):
         self.assertEqual(1, dbaas.MySqlAdmin.is_root_enabled.call_count)
 
     def test_create_backup(self):
-        when(VolumeDevice).mount('/mnt/tmp').thenReturn(None)
-        when(VolumeDevice).unmount().thenReturn(None)
         when(backup).execute('backup_id_123').thenReturn(None)
-
         # entry point
-        Manager().create_backup('backup_id_123', '/dev/vdc')
-
-        verify(VolumeDevice).mount('/mnt/tmp')
-        verify(backup).execute('backup_id_123', '/mnt/tmp')
-        verify(VolumeDevice).unmount()
-
-    def test_create_backup_without_volume(self):
-        when(VolumeDevice).mount(None).thenRaise(Exception)
-        when(VolumeDevice).unmount().thenRaise(Exception)
-        when(backup).execute('backup_id_123').thenReturn(None)
-
-        # entry point
-        Manager().create_backup('backup_id_123')
-
-        verify(VolumeDevice, never).mount(any())
-        verify(VolumeDevice, never).unmount()
+        Manager().create_backup(self.context, 'backup_id_123')
+        # assertions
         verify(backup).execute('backup_id_123')
 
     def test_prepare_device_path_true(self):
