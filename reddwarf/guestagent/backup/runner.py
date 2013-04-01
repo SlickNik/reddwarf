@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import subprocess
+from eventlet.green import subprocess
 import hashlib
 from reddwarf.common import cfg
 
@@ -53,6 +53,7 @@ class BackupRunner(object):
         self.content_length = 0
         self.segment_length = 0
         self.process = None
+        self.pid = None
         self.writer = None
         self.file_number = 0
         self.written = -1
@@ -66,6 +67,7 @@ class BackupRunner(object):
         self.process = subprocess.Popen(self.command, shell=True,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE)
+        self.pid = self.process.pid
 
     def __enter__(self):
         """Start up the process"""
