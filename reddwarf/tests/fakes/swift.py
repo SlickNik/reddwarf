@@ -268,3 +268,6 @@ class SwiftClientStub(object):
                                             http_status=404))
         self._remove_object(name, self._objects[container])
         return self
+
+def fake_create_swift_client(*args):
+    return SwiftClientStub()

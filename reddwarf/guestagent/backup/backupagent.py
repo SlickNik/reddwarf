@@ -20,36 +20,64 @@ from reddwarf.common.exception import PollTimeOut
 from reddwarf.common.utils import poll_until
 import reddwarf
 from reddwarf.backup.models import DBBackup, BackupState
+from reddwarf.backup.runner import BackupError
+from reddwarf.common import cfg
+from reddwarf.common import utils
+from reddwarf.guestagent.dbaas import ADMIN_USER_NAME
+from reddwarf.guestagent.dbaas import get_auth_password
+from reddwarf.common.remote import create_swift_client
 
 LOG = logging.getLogger(__name__)
+CONF = cfg.CONF
+
+RUNNER = utils.import_class(CONF.backup_runner)
+BACKUP_CONTAINER = CONF.backup_swift_container
 
 
 class BackupAgent(object):
-    def _update_backup_status(self, backup_id, new_state):
+
+    def execute_backup(self, context, backup_id, runner=RUNNER):
         LOG.debug("Searching for backup instance %s", backup_id)
         backup = DBBackup.find_by(id=backup_id)
         LOG.info("Setting task state to %s for instance %s",
-                 new_state, backup.instance_id)
-        backup.state(new_state)
+                 BackupState.NEW, backup.instance_id)
+        backup.state(BackupState.NEW)
         backup.save()
 
-    def execute_backup(self, backup_id):
-        """
-        Main entry point for executing a backup which will create the backup
-        data and store it a configurable repository
-        :param backup_id: the id for the persistent backup object
-        """
-        self._update_backup_status(backup_id, BackupState.BUILDING)
+        LOG.info("Running backup %s", backup_id)
+        user = ADMIN_USER_NAME
+        password = get_auth_password()
+        connection = create_swift_client(context)
+        with runner(filename=backup_id, user=user, password=password) as bkup:
+            LOG.info("Starting Backup %s", backup_id)
+            connection.put_container(BACKUP_CONTAINER)
+            while not bkup.end_of_file:
+                segment = bkup.segment
+                etag = connection.put_object(BACKUP_CONTAINER, segment, bkup)
+                # Check each segment MD5 hash against swift etag
+                # Raise an error and mark backup as failed
+                if etag != bkup.schecksum.hexdigest():
+                    print etag, bkup.schecksum.hexdigest()
+                    backup.state(BackupState.FAILED)
+                    backup.note = "Error sending data to cloud files!"
+                    backup.save()
+                    raise BackupError(backup.note)
 
-        LOG.info("Starting backup process")
-        backup = reddwarf.guestagent.strategy.Strategy.get_strategy(
-            'innobackupex', 'reddwarf.guestagent.strategies.backup')
-        cookie = backup.create_backup(None, 'location', 'output')
-        LOG.info("Waiting for backup completion")
-        try:
-            poll_until(lambda: backup.check_backup_state(None, cookie),
-                       lambda status: status == 'COMPLETE', sleep_time=.25,
-                       time_out=60)
-        except PollTimeOut as pto:
-            LOG.exception("Timeout waiting for backup %s", pto)
-            self._update_backup_status(backup_id, BackupState.FAILED)
+            checksum = bkup.checksum.hexdigest()
+            url = connection.url
+            location = "%s/%s/%s" % (url, BACKUP_CONTAINER, bkup.manifest)
+            LOG.info("Backup %s file size: %s", backup_id, bkup.content_length)
+            LOG.info('Backup %s file checksum: %s', backup_id, checksum)
+            LOG.info('Backup %s location: %s', location)
+            # Create the manifest file
+            headers = {'X-Object-Manifest': bkup.prefix}
+            connection.put_object(BACKUP_CONTAINER,
+                                  bkup.manifest,
+                                  contents='',
+                                  headers=headers)
+            LOG.info("Saving %s Backup Info", backup_id)
+            backup.state(BackupState.COMPLETED)
+            backup.checksum = checksum
+            backup.location = location
+            backup.backup_type = bkup.backup_type
+            backup.save()

@@ -113,5 +113,5 @@ class DBBackup(DatabaseModelBase):
     """A table for Backup records"""
     _data_fields = ['id', 'name', 'description', 'location', 'backup_type',
                     'size', 'tenant_id', 'state', 'instance_id',
-                    'backup_timestamp', 'deleted', 'created',
+                    'checksum', 'backup_timestamp', 'deleted', 'created',
                     'updated', 'deleted_at']

@@ -116,4 +116,4 @@ class Manager(periodic_task.PeriodicTasks):
 
         :param backup_id: the db instance id of the backup task
         """
-        backup.execute(backup_id)
+        backup.execute(context, backup_id)

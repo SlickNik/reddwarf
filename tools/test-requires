@@ -18,3 +18,4 @@ pexpect
 discover
 testrepository>=0.0.8
 mockito
+python-swiftclient
