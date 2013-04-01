@@ -19,7 +19,9 @@ from reddwarf.common import wsgi
 from reddwarf.common import exception
 from reddwarf.common.remote import create_swift_client
 from reddwarf.backup import views
+from reddwarf.backup.models import BackupState
 from reddwarf.backup.models import Backup as model
+from reddwarf.instance.models import get_db_info as get_instance
 from reddwarf.taskmanager import api as task_api
 from swiftclient.client import ClientException
 
@@ -40,9 +42,24 @@ class BackupsController(wsgi.Controller):
     def create(self, req, body, tenant_id):
 
         context = req.environ[wsgi.CONTEXT_KEY]
-        self._verify_swift_auth_token(context)
         data = body['backup']
         instance_id = data['instance']
+
+        # verify that the instance exist
+        get_instance(context, instance_id)
+
+        # verify that no other backup for this instance is running
+        running_backups = [b
+                           for b in model.list_for_instance(instance_id)
+                           if b.state != BackupState.COMPLETED
+                           and b.state != BackupState.FAILED]
+        if len(running_backups) > 0:
+            raise exception.BackupAlreadyRunning(action='create',
+                                                 backup_id=running_backups[
+                                                     0].id)
+
+        self._verify_swift_auth_token(context)
+
         backup = model.create(context, instance_id,
                               data['name'], data['description'])
         task_api.API(context).create_backup(instance_id)
@@ -51,6 +68,14 @@ class BackupsController(wsgi.Controller):
     def delete(self, req, tenant_id, id):
 
         context = req.environ[wsgi.CONTEXT_KEY]
+
+        # verify that this backup is not running
+        backup = model.get_by_id(id)
+        if backup.state != BackupState.COMPLETED and backup.state != \
+                BackupState.FAILED:
+            raise exception.BackupAlreadyRunning(action='delete',
+                                                 backup_id=id)
+
         self._verify_swift_auth_token(context)
 
         #TODO

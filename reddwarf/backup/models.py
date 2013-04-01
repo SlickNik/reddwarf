@@ -61,6 +61,20 @@ class Backup(object):
             raise exception.BackupCreationError(str(ex))
 
     @classmethod
+    def get_by_id(cls, id):
+        """
+        get the backup for that id
+        :param cls:
+        :param id: Id of the backup to return
+        :return:
+        """
+        try:
+            db_info = DBBackup.find_by(id=id, deleted=False)
+            return db_info
+        except exception.NotFound:
+            raise exception.NotFound(uuid=id)
+
+    @classmethod
     def list(cls, context):
         """
         list all live Backups belong to given tenant

@@ -232,5 +232,15 @@ class BackupUpdateError(ReddwarfError):
     message = _("Unable to update Backup table in db")
 
 
+class BackupNotCompleteError(ReddwarfError):
+    message = _("Unable to create instance because backup %(backup_id)s is "
+                "not completed")
+
+
+class BackupAlreadyRunning(ReddwarfError):
+    message = _("Unable to %(action)s backup because backup: %(backup_id)s "
+                "is running")
+
+
 class SwiftAuthError(ReddwarfError):
     message = _("Swift account not accessible for tenant %(tenant_id)s.")
