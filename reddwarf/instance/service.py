@@ -25,6 +25,8 @@ from reddwarf.common import wsgi
 from reddwarf.extensions.mysql.common import populate_databases
 from reddwarf.extensions.mysql.common import populate_users
 from reddwarf.instance import models, views
+from reddwarf.backup.models import Backup as backup_model
+from reddwarf.backup import views as backup_views
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
 
@@ -139,6 +141,15 @@ class InstanceController(wsgi.Controller):
         paged = pagination.SimplePaginatedDataView(req.url, 'instances', view,
                                                    marker)
         return wsgi.Result(paged.data(), 200)
+
+    def backups(self, req, tenant_id, id):
+        """Return all backups for the specified instance."""
+        LOG.info(_("req : '%s'\n\n") % req)
+        LOG.info(_("Indexing backups for instance '%s'") %
+                 id)
+
+        backups = backup_model.list_for_instance(id)
+        return wsgi.Result(backup_views.BackupViews(backups).data(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""

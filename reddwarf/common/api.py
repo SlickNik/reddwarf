@@ -41,7 +41,7 @@ class API(wsgi.Router):
         instance_resource = InstanceController().create_resource()
         path = "/{tenant_id}/instances"
         mapper.resource("instance", path, controller=instance_resource,
-                        member={'action': 'POST'})
+                        member={'action': 'POST', 'backups': 'GET'})
 
     def _flavor_router(self, mapper):
         flavor_resource = FlavorController().create_resource()
