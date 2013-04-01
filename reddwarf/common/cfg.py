@@ -44,7 +44,6 @@ common_opts = [
     cfg.StrOpt('nova_volume_url', default='http://localhost:8776/v2'),
     cfg.StrOpt('swift_url', default='http://localhost:8080/v1/AUTH_'),
     cfg.StrOpt('reddwarf_auth_url', default='http://0.0.0.0:5000/v2.0'),
-    cfg.StrOpt('backup_swift_container', default='DBaaS-backup'),
     cfg.StrOpt('host', default='0.0.0.0'),
     cfg.IntOpt('report_interval', default=10),
     cfg.IntOpt('periodic_interval', default=60),
@@ -109,6 +108,16 @@ common_opts = [
     cfg.IntOpt('http_put_rate', default=200),
     cfg.BoolOpt('hostname_require_ipv4', default=True,
                 help="Require user hostnames to be IPv4 addresses."),
+    cfg.StrOpt('backup_runner',
+               default='reddwarf.extensions.mysql.backup.MySQLDump',
+               help="Default strategy to perform backups"),
+    cfg.StrOpt('backup_swift_container', default='z_CLOUDDB_BACKUPS'),
+    cfg.BoolOpt('backup_use_snet', default=False,
+                help="Send backup files over snet."),
+    cfg.IntOpt('backup_chunk_size', default=2 ** 16,
+               help="Chunk size to stream to swift container."),
+    cfg.IntOpt('backup_segment_max_size', default=2 * (1024 ** 3),
+               help="Maximum size of each segment of the backup file.")
 ]
 
 

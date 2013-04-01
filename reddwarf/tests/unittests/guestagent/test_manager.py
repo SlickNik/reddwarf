@@ -106,11 +106,11 @@ class GuestAgentManagerTest(testtools.TestCase):
         self.assertEqual(1, dbaas.MySqlAdmin.is_root_enabled.call_count)
 
     def test_create_backup(self):
-        when(backup).execute('backup_id_123').thenReturn(None)
+        when(backup).execute(any()).thenReturn(None)
         # entry point
         Manager().create_backup(self.context, 'backup_id_123')
         # assertions
-        verify(backup).execute('backup_id_123')
+        verify(backup).execute(self.context, 'backup_id_123')
 
     def test_prepare_device_path_true(self):
         self._prepare_dynamic()

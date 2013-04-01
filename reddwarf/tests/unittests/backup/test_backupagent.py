@@ -12,15 +12,59 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-from mockito import when, verify, unstub, mock, any
-from reddwarf.guestagent.strategies.backup.base import BackupStrategy
-from reddwarf.guestagent import strategy
+
+import hashlib
+from mock import patch
+from mockito import when, verify, unstub, mock
 from reddwarf.backup.models import DBBackup
 from reddwarf.backup.models import BackupState
-from reddwarf.common.exception import ModelNotFoundError, PollTimeOut
+from reddwarf.backup.runner import BackupRunner
+from reddwarf.common.exception import ModelNotFoundError
 from reddwarf.db.models import DatabaseModelBase
 from reddwarf.guestagent.backup import backupagent
+import swiftclient.client
 import testtools
+from webob.exc import HTTPNotFound
+
+def create_fake_data():
+    from random import choice
+    from string import ascii_letters
+    return ''.join([choice(ascii_letters) for _ in xrange(1024)])
+
+class MockBackup(BackupRunner):
+    """Create a large temporary file to 'backup' with subprocess."""
+
+    backup_type = 'mock_backup'
+
+    def __init__(self, *args, **kwargs):
+        self.data = create_fake_data()
+        self.cmd = 'echo %s' % self.data
+        super(MockBackup, self).__init__(*args, **kwargs)
+
+
+class MockSwift(object):
+    """Store files in String"""
+    def __init__(self, *args, **kwargs):
+        self.store = ''
+        self.containers = []
+        self.url = 'http://mock.swift/user'
+        self.etag = hashlib.md5()
+    def put_container(self, container):
+        if container not in self.containers:
+            self.containers.append(container)
+        return None
+    def put_object(self, container, obj, contents, **kwargs):
+        if container not in self.containers:
+            raise HTTPNotFound
+        while True:
+            if not hasattr(contents, 'read'):
+                break
+            content = contents.read(2 ** 16)
+            if not content:
+                break
+            self.store += content
+        self.etag.update(self.store)
+        return self.etag.hexdigest()
 
 BACKUP_NS = 'reddwarf.guestagent.strategies.backup'
 
@@ -31,7 +75,10 @@ class BackupAgentTest(testtools.TestCase):
         super(BackupAgentTest, self).tearDown()
         unstub()
 
-    def test_execute_backup(self):
+    @patch('reddwarf.guestagent.backup.backupagent.get_auth_password')
+    @patch('reddwarf.guestagent.backup.backupagent.create_swift_client',
+           MockSwift)
+    def test_execute_backup(self, *args):
         """This test should ensure backup agent
                 ensures that backup and storage is not running
                 resolves backup instance
@@ -42,53 +89,14 @@ class BackupAgentTest(testtools.TestCase):
         backup = mock(DBBackup)
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backup).save().thenReturn(backup)
-        mock_strat = mock(BackupStrategy)
-        when(strategy.Strategy).get_strategy('innobackupex',
-                                             BACKUP_NS).thenReturn(mock_strat)
-        when(mock_strat).create_backup(any(), any(), any()).thenReturn(
-            'fake_cookie')
-        when(mock_strat).check_backup_state(any(), 'fake_cookie').thenReturn(
-            'BUILDING').thenReturn('BUILDING').thenReturn('COMPLETE')
-        # invocation
-        agent = backupagent.BackupAgent()
-        agent.execute_backup(backup_id='123')
-        # verification
-        verify(DatabaseModelBase).find_by(id='123')
-        verify(backup).state(BackupState.BUILDING)
-        verify(backup).save()
-        verify(strategy.Strategy).get_strategy('innobackupex', BACKUP_NS)
-        verify(mock_strat).create_backup(any(), any(), any())
-        verify(mock_strat, times=3).check_backup_state(any(), 'fake_cookie')
 
-    def test_execute_backup_exception(self):
-        """This test should ensure backup agent
-                ensures that backup and storage is not running
-                resolves backup instance
-                starts backup
-                throws exception
-                sets status to error
-                shuts down backup process
-        """
-        backup = mock(DBBackup)
-        when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
-        when(backup).save().thenReturn(backup)
-        mock_strat = mock(BackupStrategy)
-        when(strategy.Strategy).get_strategy('innobackupex',
-                                             BACKUP_NS).thenReturn(mock_strat)
-        when(mock_strat).create_backup(any(), any(), any()).thenReturn(
-            'fake_cookie')
-        when(mock_strat).check_backup_state(any(), 'fake_cookie').thenReturn(
-            'BUILDING').thenReturn('BUILDING').thenRaise(PollTimeOut)
-        # invocation
         agent = backupagent.BackupAgent()
-        agent.execute_backup(backup_id='123')
-        # verification
-        verify(DatabaseModelBase, times=2).find_by(id='123')
-        verify(backup).state(BackupState.FAILED)
+        agent.execute_backup(context=None, backup_id='123', runner=MockBackup)
+
+        verify(DatabaseModelBase).find_by(id='123')
+        verify(backup).state(BackupState.COMPLETED)
+        verify(backup).location = 'http://mock.swift/user/z_CLOUDDB_BACKUPS/123'
         verify(backup, times=2).save()
-        verify(strategy.Strategy).get_strategy('innobackupex', BACKUP_NS)
-        verify(mock_strat).create_backup(any(), any(), any())
-        verify(mock_strat, times=3).check_backup_state(any(), 'fake_cookie')
 
     def test_execute_backup_model_exception(self):
         """This test should ensure backup agent
@@ -101,4 +109,4 @@ class BackupAgentTest(testtools.TestCase):
         # also note that since the model is not found there is no way to report
         # this error
         self.assertRaises(ModelNotFoundError, agent.execute_backup,
-                          backup_id='123')
+                          context=None, backup_id='123')
