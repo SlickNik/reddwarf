@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from reddwarf.backup.runner import BackupRunner
+from reddwarf.guestagent.backup.runner import BackupRunner
 
 
 class MySQLDump(BackupRunner):
@@ -32,16 +32,16 @@ class MySQLDump(BackupRunner):
         return '%s.gz' % self.filename
 
 
-class XTRABackup(BackupRunner):
+class InnoBackupEx(BackupRunner):
 
-    cmd = 'xtrabackup'\
+    cmd = 'innobackupex'\
           ' --password=%(password)s'\
           ' --user=%(user)s'\
-          ' --stream=tar'\
-          ' ./'\
-          ' | gzip'
-    backup_type = 'xtrabackup'
+          ' --stream=xbstream'\
+          ' --compress'\
+          ' /var/lib/mysql'
+    backup_type = 'innobackupex'
 
     @property
     def manifest(self):
-        return '%s.tar.gz' % self.filename
+        return '%s.xbstream' % self.filename

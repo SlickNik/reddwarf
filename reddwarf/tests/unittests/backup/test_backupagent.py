@@ -18,18 +18,20 @@ from mock import patch
 from mockito import when, verify, unstub, mock
 from reddwarf.backup.models import DBBackup
 from reddwarf.backup.models import BackupState
-from reddwarf.backup.runner import BackupRunner
 from reddwarf.common.exception import ModelNotFoundError
 from reddwarf.db.models import DatabaseModelBase
 from reddwarf.guestagent.backup import backupagent
+from reddwarf.guestagent.backup.runner import BackupRunner
 import swiftclient.client
 import testtools
 from webob.exc import HTTPNotFound
+
 
 def create_fake_data():
     from random import choice
     from string import ascii_letters
     return ''.join([choice(ascii_letters) for _ in xrange(1024)])
+
 
 class MockBackup(BackupRunner):
     """Create a large temporary file to 'backup' with subprocess."""
@@ -49,10 +51,12 @@ class MockSwift(object):
         self.containers = []
         self.url = 'http://mock.swift/user'
         self.etag = hashlib.md5()
+
     def put_container(self, container):
         if container not in self.containers:
             self.containers.append(container)
         return None
+
     def put_object(self, container, obj, contents, **kwargs):
         if container not in self.containers:
             raise HTTPNotFound
@@ -95,7 +99,8 @@ class BackupAgentTest(testtools.TestCase):
 
         verify(DatabaseModelBase).find_by(id='123')
         verify(backup).state(BackupState.COMPLETED)
-        verify(backup).location = 'http://mock.swift/user/z_CLOUDDB_BACKUPS/123'
+        verify(backup).location = \
+            'http://mock.swift/user/z_CLOUDDB_BACKUPS/123'
         verify(backup, times=2).save()
 
     def test_execute_backup_model_exception(self):
