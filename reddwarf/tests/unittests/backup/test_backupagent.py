@@ -18,18 +18,20 @@ from mock import patch
 from mockito import when, verify, unstub, mock
 from reddwarf.backup.models import DBBackup
 from reddwarf.backup.models import BackupState
-from reddwarf.backup.runner import BackupRunner
 from reddwarf.common.exception import ModelNotFoundError
 from reddwarf.db.models import DatabaseModelBase
 from reddwarf.guestagent.backup import backupagent
+from reddwarf.guestagent.backup.runner import BackupRunner
 import swiftclient.client
 import testtools
 from webob.exc import HTTPNotFound
+
 
 def create_fake_data():
     from random import choice
     from string import ascii_letters
     return ''.join([choice(ascii_letters) for _ in xrange(1024)])
+
 
 class MockBackup(BackupRunner):
     """Create a large temporary file to 'backup' with subprocess."""
@@ -42,17 +44,30 @@ class MockBackup(BackupRunner):
         super(MockBackup, self).__init__(*args, **kwargs)
 
 
+class MockLossyBackup(MockBackup):
+    """Fake Incomplete writes to swift"""
+
+    def read(self, *args):
+        results = super(MockLossyBackup, self).read(*args)
+        if results:
+            # strip a few chars from the stream
+            return results[20:]
+
+
 class MockSwift(object):
     """Store files in String"""
+
     def __init__(self, *args, **kwargs):
         self.store = ''
         self.containers = []
-        self.url = 'http://mock.swift/user'
+        self.url = 'http://mockswift/v1'
         self.etag = hashlib.md5()
+
     def put_container(self, container):
         if container not in self.containers:
             self.containers.append(container)
         return None
+
     def put_object(self, container, obj, contents, **kwargs):
         if container not in self.containers:
             raise HTTPNotFound
@@ -65,6 +80,7 @@ class MockSwift(object):
             self.store += content
         self.etag.update(self.store)
         return self.etag.hexdigest()
+
 
 BACKUP_NS = 'reddwarf.guestagent.strategies.backup'
 
@@ -95,7 +111,26 @@ class BackupAgentTest(testtools.TestCase):
 
         verify(DatabaseModelBase).find_by(id='123')
         verify(backup).state(BackupState.COMPLETED)
-        verify(backup).location = 'http://mock.swift/user/z_CLOUDDB_BACKUPS/123'
+        verify(backup).location = 'http://mockswift/v1/z_CLOUDDB_BACKUPS/123'
+        verify(backup, times=2).save()
+
+    @patch('reddwarf.guestagent.backup.backupagent.get_auth_password')
+    @patch('reddwarf.guestagent.backup.backupagent.create_swift_client',
+           MockSwift)
+    def test_execute_lossy_backup(self, *args):
+        """This test verifies that incomplete writes to swift will fail."""
+        backup = mock(DBBackup)
+        when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
+        when(backup).save().thenReturn(backup)
+
+        agent = backupagent.BackupAgent()
+
+        self.assertRaises(backupagent.BackupError, agent.execute_backup,
+                          context=None, backup_id='123',
+                          runner=MockLossyBackup)
+
+        verify(backup).state(BackupState.FAILED)
+        verify(backup).note = "Error sending data to cloud files!"
         verify(backup, times=2).save()
 
     def test_execute_backup_model_exception(self):

@@ -15,16 +15,12 @@
 #
 
 import logging
-from eventlet.green import time
-from reddwarf.common.exception import PollTimeOut
-from reddwarf.common.utils import poll_until
-import reddwarf
 from reddwarf.backup.models import DBBackup, BackupState
-from reddwarf.backup.runner import BackupError
 from reddwarf.common import cfg
 from reddwarf.common import utils
 from reddwarf.guestagent.dbaas import ADMIN_USER_NAME
 from reddwarf.guestagent.dbaas import get_auth_password
+from reddwarf.guestagent.backup.runner import BackupError
 from reddwarf.common.remote import create_swift_client
 
 LOG = logging.getLogger(__name__)
