@@ -374,7 +374,8 @@ class Controller(object):
             exception.ModelNotFoundError,
             exception.UserNotFound,
             exception.DatabaseNotFound,
-            exception.QuotaResourceUnknown
+            exception.QuotaResourceUnknown,
+            exception.BackupFileNotFound
         ],
         webob.exc.HTTPConflict: [],
         webob.exc.HTTPRequestEntityTooLarge: [

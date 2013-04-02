@@ -30,6 +30,8 @@ from reddwarf.backup.models import BackupState
 from reddwarf.backup import views as backup_views
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
+from reddwarf.common.remote import create_swift_client
+from swiftclient.client import ClientException
 
 
 CONF = cfg.CONF
@@ -202,17 +204,22 @@ class InstanceController(wsgi.Controller):
             volume_size = None
 
         if body['instance'].get('restorePoint', None) is not None:
-            backup_ref = body['instance']['restorePoint']['backupRef']
-            backup_info = backup_model.get_by_id(backup_ref)
+            backup_id = body['instance']['restorePoint']['backupId']
+            backup_info = backup_model.get_by_id(backup_id)
             if not backup_info.state == BackupState.COMPLETED:
-                raise exception.BackupNotCompleteError(backup_id=backup_ref)
+                raise exception.BackupNotCompleteError(backup_id=backup_id)
+
+            # verify backup file exist in swift
+            location = backup_info.location
+            if not InstanceController._check_object_exist(context, location):
+                raise exception.BackupFileNotFound(location=location)
         else:
-            backup_ref = None
+            backup_id = None
 
         instance = models.Instance.create(context, name, flavor_id,
                                           image_id, databases, users,
                                           service_type, volume_size,
-                                          backup_ref)
+                                          backup_id)
 
         view = views.InstanceDetailView(instance, req=req)
         return wsgi.Result(view.data(), 200)
@@ -275,3 +282,19 @@ class InstanceController(wsgi.Controller):
             LOG.error(_("Create Instance Required field(s) - %s") % e)
             raise exception.ReddwarfError("Required element/key - %s "
                                           "was not specified" % e)
+
+    @staticmethod
+    def _check_object_exist(context, location):
+        LOG.info(_("Checking if backup exist in '%s'") % location)
+        try:
+            parts = location.split('/')
+            obj = parts[-1]
+            container = parts[-2]
+            client = create_swift_client(context)
+            client.head_object(container, obj)
+            return True
+        except ClientException as e:
+            if e.http_status == 404:
+                return False
+            else:
+                raise exception.SwiftAuthError(tenant_id=context.tenant)
