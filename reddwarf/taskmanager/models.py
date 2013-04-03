@@ -360,7 +360,7 @@ class BuiltInstanceTasks(BuiltInstance):
         # do a volume detach/delete
         pass
 
-    def create_backup(self):
+    def create_backup(self, backup_id):
         # create a temp volume
         # nova list
         # nova show
@@ -368,7 +368,8 @@ class BuiltInstanceTasks(BuiltInstance):
         # volume create
         # volume attach
         # call GA.create_backup()
-        pass
+        self.guest.create_backup(backup_id)
+        LOG.debug("Called create_backup  %s " % self.id)
 
     def reboot(self):
         try:
