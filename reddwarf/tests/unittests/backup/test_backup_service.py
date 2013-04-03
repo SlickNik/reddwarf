@@ -133,4 +133,3 @@ class TestBackupController(testtools.TestCase):
         self.assertRaises(exception.BackupAlreadyRunning,
                           self.controller.delete, req,
                           'tenant 123', 'backup_id')
-

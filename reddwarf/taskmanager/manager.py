@@ -72,6 +72,10 @@ class Manager(periodic_task.PeriodicTasks):
         instance_tasks = models.BuiltInstanceTasks.load(context, instance_id)
         instance_tasks.create_backup()
 
+    def delete_backup(self, context, backup_id):
+        # todo
+        pass
+
     def teardown_backup(self, context, instance_id):
         instance_tasks = models.BuiltInstanceTasks.load(context, instance_id)
         instance_tasks.teardown_backup()

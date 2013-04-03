@@ -77,10 +77,7 @@ class BackupsController(wsgi.Controller):
                                                  backup_id=id)
 
         self._verify_swift_auth_token(context)
-
-        #TODO
-        # Invoke taskmanager to delete the backup from swift
-
+        api.API(context).delete_backup(id)
         Backup.delete(id)
         return wsgi.Result(None, 202)
 
