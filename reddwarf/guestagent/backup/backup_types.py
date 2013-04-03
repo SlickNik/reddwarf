@@ -34,12 +34,10 @@ class MySQLDump(BackupRunner):
 
 class InnoBackupEx(BackupRunner):
 
-    cmd = 'innobackupex'\
-          ' --password=%(password)s'\
-          ' --user=%(user)s'\
+    cmd = 'sudo innobackupex'\
           ' --stream=xbstream'\
           ' --compress'\
-          ' /var/lib/mysql'
+          ' /var/lib/mysql 2>/var/log/innobackupex.log'
     backup_type = 'innobackupex'
 
     @property

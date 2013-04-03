@@ -109,7 +109,7 @@ common_opts = [
     cfg.BoolOpt('hostname_require_ipv4', default=True,
                 help="Require user hostnames to be IPv4 addresses."),
     cfg.StrOpt('backup_runner',
-               default='reddwarf.guestagent.backup.backup_types.MySQLDump',
+               default='reddwarf.guestagent.backup.backup_types.InnoBackupEx',
                help="Default strategy to perform backups"),
     cfg.StrOpt('backup_swift_container', default='z_CLOUDDB_BACKUPS'),
     cfg.BoolOpt('backup_use_snet', default=False,

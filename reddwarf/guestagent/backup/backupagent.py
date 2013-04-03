@@ -37,7 +37,7 @@ class BackupAgent(object):
         backup = DBBackup.find_by(id=backup_id)
         LOG.info("Setting task state to %s for instance %s",
                  BackupState.NEW, backup.instance_id)
-        backup.state(BackupState.NEW)
+        backup.state = BackupState.NEW
         backup.save()
 
         LOG.info("Running backup %s", backup_id)
@@ -54,7 +54,7 @@ class BackupAgent(object):
                 # Raise an error and mark backup as failed
                 if etag != bkup.schecksum.hexdigest():
                     print etag, bkup.schecksum.hexdigest()
-                    backup.state(BackupState.FAILED)
+                    backup.state = BackupState.FAILED
                     backup.note = "Error sending data to cloud files!"
                     backup.save()
                     raise BackupError(backup.note)
@@ -64,7 +64,7 @@ class BackupAgent(object):
             location = "%s/%s/%s" % (url, BACKUP_CONTAINER, bkup.manifest)
             LOG.info("Backup %s file size: %s", backup_id, bkup.content_length)
             LOG.info('Backup %s file checksum: %s', backup_id, checksum)
-            LOG.info('Backup %s location: %s', location)
+            LOG.info('Backup %s location: %s', backup_id, location)
             # Create the manifest file
             headers = {'X-Object-Manifest': bkup.prefix}
             connection.put_object(BACKUP_CONTAINER,
@@ -72,7 +72,7 @@ class BackupAgent(object):
                                   contents='',
                                   headers=headers)
             LOG.info("Saving %s Backup Info", backup_id)
-            backup.state(BackupState.COMPLETED)
+            backup.state = BackupState.COMPLETED
             backup.checksum = checksum
             backup.location = location
             backup.backup_type = bkup.backup_type
