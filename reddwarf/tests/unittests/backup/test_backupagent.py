@@ -15,17 +15,17 @@ from io import IOBase
 
 
 import hashlib
-from mock import patch
+import testtools
+from testtools.matchers import Equals
+from webob.exc import HTTPNotFound
 from mockito import when, verify, unstub, mock
+
 from reddwarf.backup.models import DBBackup
 from reddwarf.backup.models import BackupState
 from reddwarf.common.exception import ModelNotFoundError
 from reddwarf.db.models import DatabaseModelBase
 from reddwarf.guestagent.backup import backupagent
 from reddwarf.guestagent.backup.runner import BackupRunner
-import swiftclient.client
-import testtools
-from webob.exc import HTTPNotFound
 
 
 def create_fake_data():
@@ -88,13 +88,15 @@ BACKUP_NS = 'reddwarf.guestagent.strategies.backup'
 
 class BackupAgentTest(testtools.TestCase):
 
+    def setUp(self):
+        super(BackupAgentTest, self).setUp()
+        when(backupagent).get_auth_password().thenReturn('secret')
+        when(backupagent).create_swift_client(None).thenReturn(MockSwift())
+
     def tearDown(self):
         super(BackupAgentTest, self).tearDown()
         unstub()
 
-    @patch('reddwarf.guestagent.backup.backupagent.get_auth_password')
-    @patch('reddwarf.guestagent.backup.backupagent.create_swift_client',
-           MockSwift)
     def test_execute_backup(self, *args):
         """This test should ensure backup agent
                 ensures that backup and storage is not running
@@ -112,15 +114,14 @@ class BackupAgentTest(testtools.TestCase):
 
         verify(DatabaseModelBase).find_by(id='123')
         verify(backup).state(BackupState.COMPLETED)
-        verify(backup).location = 'http://mockswift/v1/z_CLOUDDB_BACKUPS/123'
+        self.assertThat(backup.location,
+                        Equals('http://mockswift/v1/z_CLOUDDB_BACKUPS/123'))
         verify(backup, times=2).save()
 
-    @patch('reddwarf.guestagent.backup.backupagent.get_auth_password')
-    @patch('reddwarf.guestagent.backup.backupagent.create_swift_client',
-           MockSwift)
     def test_execute_lossy_backup(self, *args):
         """This test verifies that incomplete writes to swift will fail."""
         backup = mock(DBBackup)
+        when(backupagent).get_auth_password().thenReturn('secret')
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backup).save().thenReturn(backup)
 
@@ -131,7 +132,8 @@ class BackupAgentTest(testtools.TestCase):
                           runner=MockLossyBackup)
 
         verify(backup).state(BackupState.FAILED)
-        verify(backup).note = "Error sending data to cloud files!"
+        self.assertThat(backup.note,
+                        Equals("Error sending data to cloud files!"))
         verify(backup, times=2).save()
 
     def test_execute_backup_model_exception(self):
