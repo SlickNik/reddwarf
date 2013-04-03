@@ -62,7 +62,7 @@ class BackupsController(wsgi.Controller):
 
         backup = Backup.create(context, instance_id,
                                data['name'], data['description'])
-        api.API(context).create_backup(instance_id)
+        api.API(context).create_backup(backup.id, instance_id)
         return wsgi.Result(views.BackupView(backup).data(), 202)
 
     def delete(self, req, tenant_id, id):
