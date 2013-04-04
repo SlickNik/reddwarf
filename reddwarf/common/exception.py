@@ -23,7 +23,6 @@ from reddwarf.openstack.common.gettextutils import _
 
 from webob import exc
 
-
 ClientConnectionError = openstack_exception.ClientConnectionError
 ProcessExecutionError = processutils.ProcessExecutionError
 DatabaseMigrationError = openstack_exception.DatabaseMigrationError
@@ -249,3 +248,23 @@ class BackupFileNotFound(NotFound):
 
 class SwiftAuthError(ReddwarfError):
     message = _("Swift account not accessible for tenant %(tenant_id)s.")
+
+
+class SecurityGroupCreationError(ReddwarfError):
+
+    message = _("Failed to create Security Group.")
+
+
+class SecurityGroupDeletionError(ReddwarfError):
+
+    message = _("Failed to delete Security Group.")
+
+
+class SecurityGroupRuleCreationError(ReddwarfError):
+
+    message = _("Failed to create Security Group Rule.")
+
+
+class SecurityGroupRuleDeletionError(ReddwarfError):
+
+    message = _("Failed to delete Security Group Rule.")

@@ -117,7 +117,10 @@ common_opts = [
     cfg.IntOpt('backup_chunk_size', default=2 ** 16,
                help="Chunk size to stream to swift container."),
     cfg.IntOpt('backup_segment_max_size', default=2 * (1024 ** 3),
-               help="Maximum size of each segment of the backup file.")
+               help="Maximum size of each segment of the backup file."),
+    cfg.BoolOpt('reddwarf_security_groups_support', default=True),
+    cfg.StrOpt('reddwarf_security_group_rule_protocol', default='tcp'),
+    cfg.IntOpt('reddwarf_security_group_rule_port', default=3306),
 ]
 
 
