@@ -14,12 +14,26 @@
 #    under the License.
 #
 
+import abc
 from reddwarf.guestagent.strategy import Strategy
 from reddwarf.openstack.common import log as logging
+
 
 LOG = logging.getLogger(__name__)
 
 
-def get_backup_strategy(backup_driver, ns=__name__):
-    LOG.debug("Getting backup strategy: %s" % backup_driver)
-    return Strategy.get_strategy(backup_driver, ns)
+class Storage(Strategy):
+    """ Base class for Storage Strategy implementation """
+    __strategy_type__ = 'storage'
+    __strategy_ns__ = 'reddwarf.guestagent.strategies.storage'
+
+    def __init__(self):
+        super(Storage, self).__init__()
+
+    @abc.abstractmethod
+    def save(self, save_location, stream):
+        """ Persist information from the stream """
+
+    @abc.abstractmethod
+    def load(self, context):
+        """ Restore a backup from the input stream to the restore_location """

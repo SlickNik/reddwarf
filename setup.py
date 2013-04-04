@@ -16,6 +16,7 @@ import gettext
 import os
 import setuptools
 import subprocess
+import textwrap
 
 gettext.install('reddwarf', unicode=1)
 
@@ -27,7 +28,8 @@ requires = setup.parse_requirements()
 depend_links = setup.parse_dependency_links()
 
 
-setuptools.setup(name='reddwarf',
+setuptools.setup(
+    name='reddwarf',
     version=setup.get_version('reddwarf'),
     description='DBaaS services for Openstack',
     author='OpenStack',
@@ -46,7 +48,7 @@ setuptools.setup(name='reddwarf',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 2.6',
         'Environment :: No Input/Output (Daemon)',
-        ],
+    ],
     scripts=['bin/reddwarf-api',
              'bin/reddwarf-server',
              'bin/reddwarf-taskmanager',

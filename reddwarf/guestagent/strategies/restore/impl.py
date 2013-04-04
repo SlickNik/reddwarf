@@ -14,12 +14,18 @@
 #    under the License.
 #
 
-from reddwarf.guestagent.strategy import Strategy
+from reddwarf.guestagent.strategies.backup import base
 from reddwarf.openstack.common import log as logging
+
 
 LOG = logging.getLogger(__name__)
 
 
-def get_backup_strategy(backup_driver, ns=__name__):
-    LOG.debug("Getting backup strategy: %s" % backup_driver)
-    return Strategy.get_strategy(backup_driver, ns)
+class MySQLDump(base.BackupRunner):
+    """ Implementation of Restore Strategy for MySQLDump """
+    __strategy_name__ = 'mysqldump'
+
+
+class InnoBackupEx(base.RestoreRunner):
+    """ Implementation of Restore Strategy for InnoBackupEx """
+    __strategy_name__ = 'innobackupex'
