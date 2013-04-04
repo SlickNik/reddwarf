@@ -27,6 +27,7 @@ LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 RUNNER = utils.import_class(CONF.backup_runner)
+RESTORE_RUNNER = utils.import_class(CONF.restore_runner)
 BACKUP_CONTAINER = CONF.backup_swift_container
 
 
@@ -77,3 +78,6 @@ class BackupAgent(object):
             backup.location = location
             backup.backup_type = bkup.backup_type
             backup.save()
+
+    def execute_restore(self, context, backup_id, runner=RESTORE_RUNNER):
+        raise NotImplementedError('execute restore is not yet implemented')

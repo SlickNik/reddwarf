@@ -16,7 +16,7 @@ from io import IOBase
 
 import hashlib
 import testtools
-from testtools.matchers import Equals
+from testtools.matchers import Equals, Is
 from webob.exc import HTTPNotFound
 from mockito import when, verify, unstub, mock
 
@@ -113,7 +113,7 @@ class BackupAgentTest(testtools.TestCase):
         agent.execute_backup(context=None, backup_id='123', runner=MockBackup)
 
         verify(DatabaseModelBase).find_by(id='123')
-        verify(backup).state(BackupState.COMPLETED)
+        self.assertThat(backup.state, Is(BackupState.COMPLETED))
         self.assertThat(backup.location,
                         Equals('http://mockswift/v1/z_CLOUDDB_BACKUPS/123'))
         verify(backup, times=2).save()
@@ -131,7 +131,7 @@ class BackupAgentTest(testtools.TestCase):
                           context=None, backup_id='123',
                           runner=MockLossyBackup)
 
-        verify(backup).state(BackupState.FAILED)
+        self.assertThat(backup.state, Is(BackupState.FAILED))
         self.assertThat(backup.note,
                         Equals("Error sending data to cloud files!"))
         verify(backup, times=2).save()
@@ -148,3 +148,18 @@ class BackupAgentTest(testtools.TestCase):
         # this error
         self.assertRaises(ModelNotFoundError, agent.execute_backup,
                           context=None, backup_id='123')
+
+    def test_execute_restore(self):
+        """This test should ensure backup agent
+                resolves backup instance
+                determines backup/restore type
+                transfers/downloads data and invokes the restore module
+                reports status
+        """
+        backup = mock(DBBackup)
+        when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
+        when(backup).save().thenReturn(backup)
+
+        agent = backupagent.BackupAgent()
+        self.assertRaises(NotImplementedError, agent.execute_restore,
+                          context=None, backup_id='123', runner=MockBackup)

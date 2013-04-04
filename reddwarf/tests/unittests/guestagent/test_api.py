@@ -197,13 +197,7 @@ class ApiTest(testtools.TestCase):
         self._verify_rpc_call(exp_msg)
 
     def test_create_backup(self):
-        exp_msg = RpcMsgMatcher('create_backup', 'backup_id', 'device_path')
-        self._mock_rpc_cast(exp_msg)
-        self.api.create_backup('123', '/mnt/vdc')
-        self._verify_rpc_cast(exp_msg)
-
-    def test_create_backup(self):
-        exp_msg = RpcMsgMatcher('create_backup', 'backup_id', 'device_path')
+        exp_msg = RpcMsgMatcher('create_backup', 'backup_id')
         self._mock_rpc_cast(exp_msg)
         self.api.create_backup('123')
         self._verify_rpc_cast(exp_msg)

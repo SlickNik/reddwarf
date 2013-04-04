@@ -112,11 +112,11 @@ class GuestAgentManagerTest(testtools.TestCase):
         verify(dbaas.MySqlAdmin).is_root_enabled()
 
     def test_create_backup(self):
-        when(backup).execute(self.context, 'backup_id_123').thenReturn(None)
+        when(backup).backup(self.context, 'backup_id_123').thenReturn(None)
         # entry point
         Manager().create_backup(self.context, 'backup_id_123')
         # assertions
-        verify(backup).execute(self.context, 'backup_id_123')
+        verify(backup).backup(self.context, 'backup_id_123')
 
     def test_prepare_device_path_true(self):
         self._prepare_dynamic()
@@ -130,8 +130,12 @@ class GuestAgentManagerTest(testtools.TestCase):
     def test_prepare_mysql_from_backup(self):
         self._prepare_dynamic(backup_id='backup_id_123abc')
 
+    def test_prepare_mysql_from_backup(self):
+        self._prepare_dynamic(backup_id='backup_id_123abc',
+                              is_root_enabled=False)
+
     def _prepare_dynamic(self, device_path='/dev/vdb', is_mysql_installed=True,
-                         backup_id=None):
+                         backup_id=None, is_root_enabled=False):
 
         if device_path:
             COUNT = 1
@@ -143,7 +147,7 @@ class GuestAgentManagerTest(testtools.TestCase):
         else:
             SEC_COUNT = 0
 
-        # TODO (juice) this should stub an instance of the class
+        # TODO (juice) this should stub an instance of the MySqlAppStatus
         mock_status = mock()
         when(dbaas.MySqlAppStatus).get().thenReturn(mock_status)
         when(mock_status).begin_mysql_install().thenReturn(None)
@@ -153,6 +157,7 @@ class GuestAgentManagerTest(testtools.TestCase):
         when(dbaas.MySqlApp).stop_mysql().thenReturn(None)
         when(dbaas.MySqlApp).start_mysql().thenReturn(None)
         when(dbaas.MySqlApp).install_if_needed().thenReturn(None)
+        when(backup).restore(self.context, backup_id).thenReturn(None)
         when(dbaas.MySqlApp).secure().thenReturn(None)
         when(dbaas.MySqlApp).is_installed().thenReturn(is_mysql_installed)
         when(dbaas.MySqlAdmin).create_user().thenReturn(None)
@@ -172,7 +177,8 @@ class GuestAgentManagerTest(testtools.TestCase):
         verify(dbaas.MySqlApp, times=(COUNT * SEC_COUNT)).stop_mysql()
         verify(VolumeDevice, times=(COUNT * SEC_COUNT)).migrate_data(any())
         verify(dbaas.MySqlApp, times=(COUNT * SEC_COUNT)).start_mysql()
-
+        if backup_id:
+            verify(backup).restore(self.context, backup_id)
         verify(dbaas.MySqlApp).install_if_needed()
         verify(dbaas.MySqlApp).secure('2048')
         verify(dbaas.MySqlAdmin, never).create_database()

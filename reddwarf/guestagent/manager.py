@@ -89,6 +89,10 @@ class Manager(periodic_task.PeriodicTasks):
             if restart_mysql:
                 app.start_mysql()
         app.install_if_needed()
+        if backup_id:
+            LOG.info(_("Restoring database from backup %s" % backup_id))
+            backup.restore(context, backup_id)
+            LOG.info(_("Restored database"))
         LOG.info("Securing mysql now.")
         app.secure(memory_mb)
         self.create_database(databases)
@@ -120,4 +124,4 @@ class Manager(periodic_task.PeriodicTasks):
 
         :param backup_id: the db instance id of the backup task
         """
-        backup.execute(context, backup_id)
+        backup.backup(context, backup_id)
