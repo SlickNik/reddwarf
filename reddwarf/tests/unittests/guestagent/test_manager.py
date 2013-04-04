@@ -11,99 +11,105 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License
-from mockito import verify, when, any, never, unstub
+
+import os
+
+from mockito import verify, when, unstub, any, mock, never
+import testtools
+from testtools.matchers import Is, Equals, Not
+from reddwarf.common.context import ReddwarfContext
+
 from reddwarf.guestagent.manager import Manager
 from reddwarf.guestagent import dbaas, backup
-from reddwarf.guestagent import volume
 from reddwarf.guestagent.volume import VolumeDevice
-import testtools
-import os
-from mock import Mock, MagicMock
 
 
 class GuestAgentManagerTest(testtools.TestCase):
 
     def setUp(self):
         super(GuestAgentManagerTest, self).setUp()
-        self.context = Mock()
+        self.context = ReddwarfContext()
         self.manager = Manager()
-        self.origin_MySqlAppStatus = dbaas.MySqlAppStatus
-        self.origin_os_path_exists = os.path.exists
-        self.origin_format = volume.VolumeDevice.format
-        self.origin_migrate_data = volume.VolumeDevice.migrate_data
-        self.origin_mount = volume.VolumeDevice.mount
-        self.origin_is_installed = dbaas.MySqlApp.is_installed
-        self.origin_stop_mysql = dbaas.MySqlApp.stop_mysql
-        self.origin_start_mysql = dbaas.MySqlApp.start_mysql
-        self.origin_install_mysql = dbaas.MySqlApp._install_mysql
 
     def tearDown(self):
         super(GuestAgentManagerTest, self).tearDown()
         unstub()
-        dbaas.MySqlAppStatus = self.origin_MySqlAppStatus
-        os.path.exists = self.origin_os_path_exists
-        volume.VolumeDevice.format = self.origin_format
-        volume.VolumeDevice.migrate_data = self.origin_migrate_data
-        volume.VolumeDevice.mount = self.origin_mount
-        dbaas.MySqlApp.is_installed = self.origin_is_installed
-        dbaas.MySqlApp.stop_mysql = self.origin_stop_mysql
-        dbaas.MySqlApp.start_mysql = self.origin_start_mysql
-        dbaas.MySqlApp._install_mysql = self.origin_install_mysql
 
     def test_update_status(self):
-        dbaas.MySqlAppStatus.get = MagicMock()
+        mock_status = mock()
+        when(dbaas.MySqlAppStatus).get().thenReturn(mock_status)
         self.manager.update_status(self.context)
-        self.assertEqual(1, dbaas.MySqlAppStatus.get.call_count)
-
-    def test_update_status_2(self):
-        self._setUp_MySqlAppStatus_get()
-        dbaas.MySqlAppStatus.update = MagicMock()
-        self.manager.update_status(self.context)
-        self.assertEqual(1, dbaas.MySqlAppStatus.update.call_count)
+        verify(dbaas.MySqlAppStatus).get()
+        verify(mock_status).update()
 
     def test_create_database(self):
-        databases = Mock()
-        dbaas.MySqlAdmin.create_database = MagicMock()
-        self.manager.create_database(self.context, databases)
-        self.assertEqual(1, dbaas.MySqlAdmin.create_database.call_count)
+        when(dbaas.MySqlAdmin).create_database(['db1']).thenReturn(None)
+        self.manager.create_database(['db1'])
+        verify(dbaas.MySqlAdmin).create_database(['db1'])
+
+    def test_create_database_empty(self):
+        when(dbaas.MySqlAdmin).create_database(any()).thenReturn(None)
+        self.manager.create_database([])
+        verify(dbaas.MySqlAdmin, never).create_database(any())
+
+    def test_create_database_none(self):
+        when(dbaas.MySqlAdmin).create_database(any()).thenReturn(None)
+        self.manager.create_database(None)
+        verify(dbaas.MySqlAdmin, never).create_database(any())
 
     def test_create_user(self):
-        users = Mock()
-        dbaas.MySqlAdmin.create_user = MagicMock()
-        self.manager.create_user(self.context, users)
-        self.assertEqual(1, dbaas.MySqlAdmin.create_user.call_count)
+        when(dbaas.MySqlAdmin).create_user(['user1']).thenReturn(None)
+        self.manager.create_user(['user1'])
+        verify(dbaas.MySqlAdmin).create_user(['user1'])
+
+    def test_create_user_empty(self):
+        when(dbaas.MySqlAdmin).create_user(any()).thenReturn(None)
+        self.manager.create_user([])
+        verify(dbaas.MySqlAdmin, never).create_user(any())
+
+    def test_create_user_none(self):
+        when(dbaas.MySqlAdmin).create_user(any()).thenReturn(None)
+        self.manager.create_user(None)
+        verify(dbaas.MySqlAdmin, never).create_user(any())
 
     def test_delete_database(self):
-        databases = Mock()
-        dbaas.MySqlAdmin.delete_database = MagicMock()
+        databases = ['db1']
+        when(dbaas.MySqlAdmin).delete_database(databases).thenReturn(None)
         self.manager.delete_database(self.context, databases)
-        self.assertEqual(1, dbaas.MySqlAdmin.delete_database.call_count)
+        verify(dbaas.MySqlAdmin).delete_database(databases)
 
     def test_delete_user(self):
-        user = Mock()
-        dbaas.MySqlAdmin.delete_user = MagicMock()
+        user = ['user1']
+        when(dbaas.MySqlAdmin).delete_user(user).thenReturn(None)
         self.manager.delete_user(self.context, user)
-        self.assertEqual(1, dbaas.MySqlAdmin.delete_user.call_count)
+        verify(dbaas.MySqlAdmin).delete_user(user)
 
     def test_list_databases(self):
-        dbaas.MySqlAdmin.list_databases = MagicMock()
-        self.manager.list_databases(self.context)
-        self.assertEqual(1, dbaas.MySqlAdmin.list_databases.call_count)
+        when(dbaas.MySqlAdmin).list_databases(None, None,
+                                              False).thenReturn(['database1'])
+        databases = self.manager.list_databases(self.context)
+        self.assertThat(databases, Not(Is(None)))
+        self.assertThat(databases, Equals(['database1']))
+        verify(dbaas.MySqlAdmin).list_databases(None, None, False)
 
     def test_list_users(self):
-        dbaas.MySqlAdmin.list_users = MagicMock()
-        self.manager.list_users(self.context)
-        self.assertEqual(1, dbaas.MySqlAdmin.list_users.call_count)
+        when(dbaas.MySqlAdmin).list_users(None, None,
+                                          False).thenReturn(['user1'])
+        users = self.manager.list_users(self.context)
+        self.assertThat(users, Equals(['user1']))
+        verify(dbaas.MySqlAdmin).list_users(None, None, False)
 
     def test_enable_root(self):
-        dbaas.MySqlAdmin.enable_root = MagicMock()
-        self.manager.enable_root(self.context)
-        self.assertEqual(1, dbaas.MySqlAdmin.enable_root.call_count)
+        when(dbaas.MySqlAdmin).enable_root().thenReturn('user_id_stuff')
+        user_id = self.manager.enable_root(self.context)
+        self.assertThat(user_id, Is('user_id_stuff'))
+        verify(dbaas.MySqlAdmin).enable_root()
 
     def test_is_root_enabled(self):
-        dbaas.MySqlAdmin.is_root_enabled = MagicMock()
-        self.manager.is_root_enabled(self.context)
-        self.assertEqual(1, dbaas.MySqlAdmin.is_root_enabled.call_count)
+        when(dbaas.MySqlAdmin).is_root_enabled().thenReturn(True)
+        is_enabled = self.manager.is_root_enabled(self.context)
+        self.assertThat(is_enabled, Is(True))
+        verify(dbaas.MySqlAdmin).is_root_enabled()
 
     def test_create_backup(self):
         when(backup).execute(self.context, 'backup_id_123').thenReturn(None)
@@ -116,14 +122,18 @@ class GuestAgentManagerTest(testtools.TestCase):
         self._prepare_dynamic()
 
     def test_prepare_device_path_false(self):
-        self._prepare_dynamic(has_device_path=False)
+        self._prepare_dynamic(device_path=None)
 
     def test_prepare_mysql_not_installed(self):
         self._prepare_dynamic(is_mysql_installed=False)
 
-    def _prepare_dynamic(self, has_device_path=True, is_mysql_installed=True):
+    def test_prepare_mysql_from_backup(self):
+        self._prepare_dynamic(backup_id='backup_id_123abc')
 
-        if has_device_path:
+    def _prepare_dynamic(self, device_path='/dev/vdb', is_mysql_installed=True,
+                         backup_id=None):
+
+        if device_path:
             COUNT = 1
         else:
             COUNT = 0
@@ -133,85 +143,72 @@ class GuestAgentManagerTest(testtools.TestCase):
         else:
             SEC_COUNT = 0
 
-        self._setUp_MySqlAppStatus_get()
-        dbaas.MySqlAppStatus.begin_mysql_install = MagicMock()
-        volume.VolumeDevice.format = MagicMock()
-        volume.VolumeDevice.migrate_data = MagicMock()
-        volume.VolumeDevice.mount = MagicMock()
-        dbaas.MySqlApp.stop_mysql = MagicMock()
-        dbaas.MySqlApp.start_mysql = MagicMock()
-        dbaas.MySqlApp.install_if_needed = MagicMock()
-        dbaas.MySqlApp.secure = MagicMock()
-        self._prepare_mysql_is_installed(is_mysql_installed)
+        # TODO (juice) this should stub an instance of the class
+        mock_status = mock()
+        when(dbaas.MySqlAppStatus).get().thenReturn(mock_status)
+        when(mock_status).begin_mysql_install().thenReturn(None)
+        when(VolumeDevice).format().thenReturn(None)
+        when(VolumeDevice).migrate_data(any()).thenReturn(None)
+        when(VolumeDevice).mount().thenReturn(None)
+        when(dbaas.MySqlApp).stop_mysql().thenReturn(None)
+        when(dbaas.MySqlApp).start_mysql().thenReturn(None)
+        when(dbaas.MySqlApp).install_if_needed().thenReturn(None)
+        when(dbaas.MySqlApp).secure().thenReturn(None)
+        when(dbaas.MySqlApp).is_installed().thenReturn(is_mysql_installed)
+        when(dbaas.MySqlAdmin).create_user().thenReturn(None)
+        when(dbaas.MySqlAdmin).create_database().thenReturn(None)
 
-        Manager.create_database = MagicMock()
-        Manager.create_user = MagicMock()
-        self.manager.prepare(self.context, Mock, Mock, Mock, has_device_path)
+        when(os.path).exists(any()).thenReturn(is_mysql_installed)
+        # invocation
+        self.manager.prepare(context=self.context, databases=None,
+                             memory_mb='2048', users=None,
+                             device_path=device_path,
+                             mount_point='/var/lib/mysql',
+                             backup_id=backup_id)
+        # verification/assertion
+        verify(mock_status).begin_mysql_install()
 
-        self.assertEqual(1,
-                         dbaas.MySqlAppStatus.begin_mysql_install.call_count)
+        verify(VolumeDevice, times=COUNT).format()
+        verify(dbaas.MySqlApp, times=(COUNT * SEC_COUNT)).stop_mysql()
+        verify(VolumeDevice, times=(COUNT * SEC_COUNT)).migrate_data(any())
+        verify(dbaas.MySqlApp, times=(COUNT * SEC_COUNT)).start_mysql()
 
-        self.assertEqual(COUNT, volume.VolumeDevice.format.call_count)
-        # now called internally in install_if_needed() which is a mock
-        #self.assertEqual(1, dbaas.MySqlApp.is_installed.call_count)
-
-        self.assertEqual(COUNT * SEC_COUNT,
-                         dbaas.MySqlApp.stop_mysql.call_count)
-
-        self.assertEqual(COUNT * SEC_COUNT,
-                         volume.VolumeDevice.migrate_data.call_count)
-
-        self.assertEqual(COUNT * SEC_COUNT,
-                         dbaas.MySqlApp.start_mysql.call_count)
-
-        self.assertEqual(1,
-                         dbaas.MySqlApp.install_if_needed.call_count)
-        self.assertEqual(1, dbaas.MySqlApp.secure.call_count)
-        self.assertEqual(1, Manager.create_database.call_count)
-        self.assertEqual(1, Manager.create_user.call_count)
-
-    def _prepare_mysql_is_installed(self, is_installed=True):
-        dbaas.MySqlApp.is_installed = MagicMock(return_value=is_installed)
-        os.path.exists = MagicMock()
-        dbaas.MySqlAppStatus._get_actual_db_status = MagicMock()
-
-        def path_exists_true(path):
-            if path == "/var/lib/mysql":
-                return True
-            else:
-                return False
-
-        def path_exists_false(path):
-            if path == "/var/lib/mysql":
-                return False
-            else:
-                return False
-        if is_installed:
-            os.path.exists.side_effect = path_exists_true
-        else:
-            os.path.exists.side_effect = path_exists_false
+        verify(dbaas.MySqlApp).install_if_needed()
+        verify(dbaas.MySqlApp).secure('2048')
+        verify(dbaas.MySqlAdmin, never).create_database()
+        verify(dbaas.MySqlAdmin, never).create_user()
 
     def test_restart(self):
-        self._setUp_MySqlAppStatus_get()
-        dbaas.MySqlApp.restart = MagicMock()
+        mock_status = mock()
+        when(dbaas.MySqlAppStatus).get().thenReturn(mock_status)
+        mock_app = mock(dbaas.MySqlApp)
+        when(dbaas).MySqlApp(mock_status).thenReturn(mock_app)
+        when(mock_app).restart().thenReturn(None)
         self.manager.restart(self.context)
-        self.assertEqual(1, dbaas.MySqlApp.restart.call_count)
+        verify(mock_app).restart()
 
     def test_start_mysql_with_conf_changes(self):
-        updated_mem_size = Mock()
-        self._setUp_MySqlAppStatus_get()
-        dbaas.MySqlApp.start_mysql_with_conf_changes = MagicMock()
+        updated_mem_size = '2048'
+        mock_status = mock()
+        when(dbaas.MySqlAppStatus).get().thenReturn(mock_status)
+        mock_app = mock(dbaas.MySqlApp)
+        when(dbaas).MySqlApp(mock_status).thenReturn(mock_app)
+        when(mock_app).start_mysql_with_conf_changes(
+            updated_mem_size).thenReturn(None)
+        # invocation
         self.manager.start_mysql_with_conf_changes(self.context,
                                                    updated_mem_size)
-        self.assertEqual(1, dbaas.MySqlApp.
-                         start_mysql_with_conf_changes.call_count)
+        # verification
+        verify(mock_app).start_mysql_with_conf_changes(updated_mem_size)
 
     def test_stop_mysql(self):
-        self._setUp_MySqlAppStatus_get()
-        dbaas.MySqlApp.stop_mysql = MagicMock()
+        mock_status = mock()
+        when(dbaas.MySqlAppStatus).get().thenReturn(mock_status)
+        mock_app = mock(dbaas.MySqlApp)
+        when(dbaas).MySqlApp(mock_status).thenReturn(mock_app)
+        when(mock_app).stop_mysql(
+            do_not_start_on_reboot=False).thenReturn(None)
+        # invocation
         self.manager.stop_mysql(self.context)
-        self.assertEqual(1, dbaas.MySqlApp.stop_mysql.call_count)
-
-    def _setUp_MySqlAppStatus_get(self):
-        dbaas.MySqlAppStatus = Mock()
-        dbaas.MySqlAppStatus.get = MagicMock(return_value=dbaas.MySqlAppStatus)
+        # verification
+        verify(mock_app).stop_mysql(do_not_start_on_reboot=False)

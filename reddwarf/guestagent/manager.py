@@ -21,10 +21,14 @@ class Manager(periodic_task.PeriodicTasks):
     def change_passwords(self, context, users):
         return dbaas.MySqlAdmin().change_passwords(users)
 
-    def create_database(self, context, databases):
-        return dbaas.MySqlAdmin().create_database(databases)
+    def create_database(self, databases):
+        if not databases or len(databases) == 0:
+            return
+        dbaas.MySqlAdmin().create_database(databases)
 
-    def create_user(self, context, users):
+    def create_user(self, users):
+        if not users or len(users) == 0:
+            return
         dbaas.MySqlAdmin().create_user(users)
 
     def delete_database(self, context, database):
@@ -62,7 +66,7 @@ class Manager(periodic_task.PeriodicTasks):
         return dbaas.MySqlAdmin().is_root_enabled()
 
     def prepare(self, context, databases, memory_mb, users, device_path=None,
-                mount_point=None):
+                mount_point=None, backup_id=None):
         """Makes ready DBAAS on a Guest container."""
         dbaas.MySqlAppStatus.get().begin_mysql_install()
         # status end_mysql_install set with secure()
@@ -87,8 +91,8 @@ class Manager(periodic_task.PeriodicTasks):
         app.install_if_needed()
         LOG.info("Securing mysql now.")
         app.secure(memory_mb)
-        self.create_database(context, databases)
-        self.create_user(context, users)
+        self.create_database(databases)
+        self.create_user(users)
         LOG.info('"prepare" call has finished.')
 
     def restart(self, context):

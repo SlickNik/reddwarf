@@ -232,7 +232,8 @@ class ApiTest(testtools.TestCase):
                                 'device_path', 'mount_point', 'backup_id')
         when(rpc).cast(any(), any(), exp_msg).thenReturn(None)
 
-        self.api.prepare('2048', 'db1', 'user1', '/dev/vdt', '/mnt/opt')
+        self.api.prepare('2048', 'db1', 'user1', '/dev/vdt', '/mnt/opt',
+                         'backup_id_123')
 
         verify(rpc).create_connection(new=True)
         verify(mock_conn).create_consumer(self.api._get_routing_key(), None,
