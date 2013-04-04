@@ -433,6 +433,14 @@ class BuiltInstanceTasks(BuiltInstance):
         status.save()
 
 
+class BackupTasks(object):
+
+    @classmethod
+    def delete_backup(cls, backup_id):
+        #delete backup from swift
+        pass
+
+
 class ResizeActionBase(object):
     """Base class for executing a resize action."""
 

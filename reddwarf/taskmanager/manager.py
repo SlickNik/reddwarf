@@ -68,13 +68,12 @@ class Manager(periodic_task.PeriodicTasks):
                                                             instance_id)
             instance_tasks.delete_async()
 
+    def delete_backup(self, context, backup_id):
+        models.BackupTasks.delete_backup(backup_id)
+
     def create_backup(self, context, backup_id, instance_id):
         instance_tasks = models.BuiltInstanceTasks.load(context, instance_id)
         instance_tasks.create_backup(backup_id)
-
-    def delete_backup(self, context, backup_id):
-        # todo
-        pass
 
     def teardown_backup(self, context, instance_id):
         instance_tasks = models.BuiltInstanceTasks.load(context, instance_id)
