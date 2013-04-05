@@ -71,7 +71,7 @@ if CONF.remote_implementation == "fake":
     from reddwarf.tests.fakes.nova import fake_create_nova_client
     from reddwarf.tests.fakes.nova import fake_create_nova_volume_client
     from reddwarf.tests.fakes.guestagent import fake_create_guest_client
-    from reddwarf.tests.fakes.swift import fake_create_swift_client
+    # from reddwarf.tests.fakes.swift import fake_create_swift_client
 
     def create_guest_client(context, id):
         return fake_create_guest_client(context, id)
@@ -82,5 +82,5 @@ if CONF.remote_implementation == "fake":
     def create_nova_volume_client(context):
         return fake_create_nova_volume_client(context)
 
-    def create_swift_client(context):
-        return fake_create_swift_client(context)
+    # def create_swift_client(context):
+    #     return fake_create_swift_client(context)

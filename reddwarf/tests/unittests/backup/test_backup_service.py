@@ -17,7 +17,7 @@ from reddwarf.common import wsgi
 from reddwarf.backup.service import BackupsController
 from reddwarf.backup.models import Backup
 from reddwarf.common import exception
-from reddwarf.instance import models
+from reddwarf.instance.models import BuiltInstance, InstanceTasks, Instance
 from reddwarf.backup.models import BackupState
 from reddwarf.taskmanager import api
 
@@ -39,12 +39,29 @@ class TestBackupController(testtools.TestCase):
 
         req = mock()
         req.environ = {wsgi.CONTEXT_KEY: 'Context'}
-        when(models).get_db_info(any(), any()).thenRaise(exception.NotFound)
+        when(BuiltInstance).load(any(), any()).thenRaise(exception.NotFound)
         self.assertRaises(exception.NotFound, self.controller.create, req,
+                          data, 'tenant 123')
+
+    def test_create_instance_not_active(self):
+
+        instance = mock(Instance)
+        data = {'backup': {'name': 'backup_test',
+                           'instance': 'test_instance',
+                           'description': 'test desc'}}
+
+        req = mock()
+        req.environ = {wsgi.CONTEXT_KEY: 'Context'}
+        when(BuiltInstance).load(any(), any()).thenReturn(instance)
+        when(instance).validate_can_perform_action().thenRaise(
+            exception.UnprocessableEntity)
+        self.assertRaises(exception.UnprocessableEntity,
+                          self.controller.create, req,
                           data, 'tenant 123')
 
     def test_create_backup_is_running(self):
 
+        instance = mock(Instance)
         data = {'backup': {'name': 'backup_test',
                            'instance': 'test_instance',
                            'description': 'test desc'}}
@@ -60,7 +77,8 @@ class TestBackupController(testtools.TestCase):
 
         req = mock()
         req.environ = {wsgi.CONTEXT_KEY: 'Context'}
-        when(models).get_db_info(any(), any()).thenReturn(None)
+        when(BuiltInstance).load(any(), any()).thenReturn(instance)
+        when(instance).validate_can_perform_action().thenReturn(None)
         when(Backup).list_for_instance(any()).thenReturn([available_backup,
                                                           failed_backup,
                                                           building_backup])
@@ -68,6 +86,8 @@ class TestBackupController(testtools.TestCase):
                           self.controller.create, req, data, 'tenant 123')
 
     def test_create(self):
+
+        instance = mock()
 
         backup = mock()
         backup.id = 'backup_id'
@@ -94,7 +114,8 @@ class TestBackupController(testtools.TestCase):
 
         req = mock()
         req.environ = {wsgi.CONTEXT_KEY: 'Context'}
-        when(models).get_db_info(any(), any()).thenReturn(None)
+        when(BuiltInstance).load(any(), any()).thenReturn(instance)
+        when(instance).validate_can_perform_action().thenReturn(None)
         when(Backup).list_for_instance(any()).thenReturn([available_backup,
                                                           failed_backup])
         when(BackupsController)._verify_swift_auth_token(any()).thenReturn(

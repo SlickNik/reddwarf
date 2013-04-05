@@ -45,8 +45,9 @@ class BackupsController(wsgi.Controller):
         data = body['backup']
         instance_id = data['instance']
 
-        # verify that the instance exist
-        models.get_db_info(context, instance_id)
+        # verify that the instance exist and cant perform actions
+        instance = models.Instance.load(context, instance_id)
+        instance.validate_can_perform_action()
 
         # verify that no other backup for this instance is running
         running_backups = [b
@@ -75,7 +76,6 @@ class BackupsController(wsgi.Controller):
                 BackupState.FAILED:
             raise exception.BackupAlreadyRunning(action='delete',
                                                  backup_id=id)
-
         self._verify_swift_auth_token(context)
         api.API(context).delete_backup(id)
         Backup.delete(id)

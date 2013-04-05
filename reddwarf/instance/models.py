@@ -475,7 +475,7 @@ class Instance(BuiltInstance):
                                _create_resources)
 
     def resize_flavor(self, new_flavor_id):
-        self._validate_can_perform_action()
+        self.validate_can_perform_action()
         LOG.debug("resizing instance %s flavor to %s"
                   % (self.id, new_flavor_id))
         # Validate that the flavor can be found and that it isn't the same size
@@ -500,7 +500,7 @@ class Instance(BuiltInstance):
 
     def resize_volume(self, new_size):
         def _resize_resources():
-            self._validate_can_perform_action()
+            self.validate_can_perform_action()
             LOG.info("Resizing volume of instance %s..." % self.id)
             if not self.volume_size:
                 raise exception.BadRequest("Instance %s has no volume."
@@ -521,13 +521,13 @@ class Instance(BuiltInstance):
                                _resize_resources)
 
     def reboot(self):
-        self._validate_can_perform_action()
+        self.validate_can_perform_action()
         LOG.info("Rebooting instance %s..." % self.id)
         self.update_db(task_status=InstanceTasks.REBOOTING)
         task_api.API(self.context).reboot(self.id)
 
     def restart(self):
-        self._validate_can_perform_action()
+        self.validate_can_perform_action()
         LOG.info("Restarting MySQL on instance %s..." % self.id)
         # Set our local status since Nova might not change it quick enough.
         #TODO(tim.simpson): Possible bad stuff can happen if this service
@@ -539,7 +539,7 @@ class Instance(BuiltInstance):
         task_api.API(self.context).restart(self.id)
 
     def migrate(self):
-        self._validate_can_perform_action()
+        self.validate_can_perform_action()
         LOG.info("Migrating instance %s..." % self.id)
         self.update_db(task_status=InstanceTasks.MIGRATING)
         task_api.API(self.context).migrate(self.id)
@@ -548,7 +548,7 @@ class Instance(BuiltInstance):
         LOG.info("Settting task status to NONE on instance %s..." % self.id)
         self.update_db(task_status=InstanceTasks.NONE)
 
-    def _validate_can_perform_action(self):
+    def validate_can_perform_action(self):
         """
         Raises exception if an instance action cannot currently be performed.
         """
