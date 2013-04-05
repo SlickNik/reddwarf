@@ -36,6 +36,10 @@ class BackupError(Exception):
     """Error running the Backup Command."""
 
 
+class UnknownBackupType(Exception):
+    """Unknown backup type"""
+
+
 class BackupRunner(object):
     """
     Call out to subprocess and wrap the stdout in order to segment the output.
@@ -127,3 +131,7 @@ class BackupRunner(object):
         self.content_length += len(chunk)
         self.segment_length += len(chunk)
         return chunk
+
+
+class RestoreRunner(object):
+    """Restore a database from a previous backup."""
