@@ -26,6 +26,7 @@ from reddwarf.common.exception import ModelNotFoundError
 from reddwarf.db.models import DatabaseModelBase
 from reddwarf.guestagent.backup import backupagent
 from reddwarf.guestagent.backup.runner import BackupRunner
+from reddwarf.guestagent.backup.runner import UnknownBackupType
 
 
 def create_fake_data():
@@ -157,9 +158,22 @@ class BackupAgentTest(testtools.TestCase):
                 reports status
         """
         backup = mock(DBBackup)
+        runner = mock()
+        backup.backup_type = 'foo'
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backup).save().thenReturn(backup)
 
         agent = backupagent.BackupAgent()
+        agent.register_restore_runner('foo', runner)
         self.assertRaises(NotImplementedError, agent.execute_restore,
-                          context=None, backup_id='123', runner=MockBackup)
+                          context=None, backup_id='123')
+
+    def test_restore_unknown(self):
+        backup = mock(DBBackup)
+        backup.backup_type = 'foo'
+        when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
+        when(backup).save().thenReturn(backup)
+
+        agent = backupagent.BackupAgent()
+        self.assertRaises(UnknownBackupType, agent.execute_restore,
+                          context=None, backup_id='123')
