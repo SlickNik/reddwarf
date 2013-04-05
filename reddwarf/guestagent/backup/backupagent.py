@@ -21,17 +21,24 @@ from reddwarf.common import utils
 from reddwarf.guestagent.dbaas import ADMIN_USER_NAME
 from reddwarf.guestagent.dbaas import get_auth_password
 from reddwarf.guestagent.backup.runner import BackupError
+from reddwarf.guestagent.backup.runner import UnknownBackupType
 from reddwarf.common.remote import create_swift_client
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
 RUNNER = utils.import_class(CONF.backup_runner)
-RESTORE_RUNNER = utils.import_class(CONF.restore_runner)
 BACKUP_CONTAINER = CONF.backup_swift_container
 
 
 class BackupAgent(object):
+
+    def __init__(self):
+        self._restore_runners = {}
+
+    def register_restore_runner(self, name, kls):
+        """Register a new restore runner"""
+        self._restore_runners[name] = kls
 
     def execute_backup(self, context, backup_id, runner=RUNNER):
         LOG.debug("Searching for backup instance %s", backup_id)
@@ -79,5 +86,14 @@ class BackupAgent(object):
             backup.backup_type = bkup.backup_type
             backup.save()
 
-    def execute_restore(self, context, backup_id, runner=RESTORE_RUNNER):
+    def execute_restore(self, context, backup_id):
+        backup = DBBackup.find_by(id=backup_id)
+        restore_runner = self._get_restore_runner(backup.backup_type)
         raise NotImplementedError('execute restore is not yet implemented')
+
+    def _get_restore_runner(self, backup_type):
+        """Returns the RestoreRunner associated with this backup type."""
+        runner = self._restore_runners.get(backup_type)
+        if runner is None:
+            raise UnknownBackupType("Unknown Backup type: %s" % backup_type)
+        return runner

@@ -1,4 +1,10 @@
 from reddwarf.guestagent.backup.backupagent import BackupAgent
+from reddwarf.guestagent.backup.backup_types import MySQLDumpRestore
+from reddwarf.guestagent.backup.backup_types import InnoBackupExRestore
+
+AGENT = BackupAgent()
+AGENT.register_restore_runner('innobackupex', InnoBackupExRestore)
+AGENT.register_restore_runner('mysqldump', MySQLDumpRestore)
 
 
 def backup(context, backup_id):
@@ -10,7 +16,7 @@ def backup(context, backup_id):
     :param context:     the context token which contains the users details
     :param backup_id:   the id of the persisted backup object
     """
-    return BackupAgent().execute_backup(context, backup_id)
+    return AGENT.execute_backup(context, backup_id)
 
 
 def restore(context, backup_id):
@@ -22,4 +28,4 @@ def restore(context, backup_id):
     :param context:     the context token which contains the users details
     :param backup_id:   the id of the persisted backup object
     """
-    return BackupAgent().execute_restore(context, backup_id)
+    return AGENT.execute_restore(context, backup_id)

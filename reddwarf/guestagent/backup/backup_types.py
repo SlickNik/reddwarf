@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from reddwarf.guestagent.backup.runner import BackupRunner
+from reddwarf.guestagent.backup.runner import RestoreRunner
 
 
 class MySQLDump(BackupRunner):
@@ -43,3 +44,11 @@ class InnoBackupEx(BackupRunner):
     @property
     def manifest(self):
         return '%s.xbstream' % self.filename
+
+
+class MySQLDumpRestore(RestoreRunner):
+    pass
+
+
+class InnoBackupExRestore(RestoreRunner):
+    pass
