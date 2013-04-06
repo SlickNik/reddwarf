@@ -13,13 +13,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 #
-
 from reddwarf.guestagent.strategy import Strategy
-from reddwarf.openstack.common import log as logging
-
-LOG = logging.getLogger(__name__)
 
 
-def get_backup_strategy(backup_driver, ns=__name__):
-    LOG.debug("Getting backup strategy: %s" % backup_driver)
-    return Strategy.get_strategy(backup_driver, ns)
+class RestoreRunner(Strategy):
+    """ Base class for Restore Strategy implementations """
+    """Restore a database from a previous backup."""
+
+    __strategy_type__ = 'restore_runner'
+    __strategy_ns__ = 'reddwarf.guestagent.strategies.restore'
+
+    # The actual system calls to run the restore and prepare
+    restore_cmd = None
+    prepare_cmd = None
+
+    # The backup format type
+    restore_type = None

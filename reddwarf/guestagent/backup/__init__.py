@@ -1,10 +1,6 @@
 from reddwarf.guestagent.backup.backupagent import BackupAgent
-from reddwarf.guestagent.backup.backup_types import MySQLDumpRestore
-from reddwarf.guestagent.backup.backup_types import InnoBackupExRestore
 
 AGENT = BackupAgent()
-AGENT.register_restore_runner('innobackupex', InnoBackupExRestore)
-AGENT.register_restore_runner('mysqldump', MySQLDumpRestore)
 
 
 def backup(context, backup_id):

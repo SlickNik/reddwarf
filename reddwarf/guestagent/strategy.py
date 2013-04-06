@@ -15,7 +15,7 @@
 #
 
 import abc
-from stevedore import driver
+from reddwarf.common import utils
 from reddwarf.openstack.common import log as logging
 
 
@@ -43,8 +43,7 @@ class Strategy(object):
         return True
 
     @classmethod
-    def get_strategy(cls, name, ns=None, invoke_on_load=False,
-                     invoke_args=(), invoke_kwds={}):
+    def get_strategy(cls, name, ns=None):
         """
         Load a strategy from namespace
         """
@@ -54,10 +53,8 @@ class Strategy(object):
                 'No namespace provided or __strategy_ns__ unset')
 
         LOG.debug('Looking for strategy %s in %s', name, ns)
-        mgr = driver.DriverManager(ns, name)
 
-        return mgr.driver(*invoke_args, **invoke_kwds) if invoke_on_load \
-            else mgr.driver
+        return utils.import_class(ns + "." + name)
 
     @classmethod
     def get_canonical_name(cls):

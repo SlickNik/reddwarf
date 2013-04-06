@@ -63,3 +63,14 @@ rabbit_host=10.0.0.1
 # ============ Logging information =============================
 log_dir = /tmp/
 log_file = logfile.txt
+
+# Strategy information for backups
+backup_strategy = InnoBackupEx
+backup_namespace = reddwarf.guestagent.strategies.backup.impl
+restore_namespace = reddwarf.guestagent.strategies.restore.impl
+storage_strategy = SwiftStorage
+storage_namespace = reddwarf.guestagent.strategies.storage.swift
+backup_swift_container = z_CLOUDDB_BACKUPS
+backup_use_snet = False
+backup_chunk_size = 65536
+backup_segment_max_size = 2147483648
