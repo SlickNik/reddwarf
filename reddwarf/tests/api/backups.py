@@ -81,6 +81,18 @@ class ListBackups(object):
         assert_equal(instance_info.id, backup.instanceRef)
         assert_equal('NEW', backup.status)
 
+    @test
+    def test_backup_list_for_instance(self):
+        """test list backups"""
+
+        result = instance_info.dbaas.instances.backups(instance_info.id)
+        assert_equal(1, len(result))
+        backup = result[0]
+        assert_equal(BACKUP_NAME, backup.name)
+        assert_equal(BACKUP_DESC, backup.description)
+        assert_equal(instance_info.id, backup.instanceRef)
+        assert_equal('NEW', backup.status)
+
 
 @test(runs_after_groups=[LIST_BACKUP_GROUP],
       groups=[GROUP, DELETE_BACKUP_GROUP])
