@@ -27,19 +27,21 @@ handles RPC calls relating to Platform specific operations.
 
 import os
 import re
+import string
 import time
 import uuid
 
 from datetime import date
-from sqlalchemy import create_engine
+import exceptions
+import sqlalchemy
 from sqlalchemy import exc
 from sqlalchemy import interfaces
 from sqlalchemy.sql.expression import text
 
-from reddwarf import db
-from reddwarf.common.exception import ProcessExecutionError
 from reddwarf.common import cfg
+from reddwarf.common import exception
 from reddwarf.common import utils
+from reddwarf.extensions.mysql.models import RootHistory
 from reddwarf.guestagent import query
 from reddwarf.guestagent.db import models
 from reddwarf.guestagent import pkg
@@ -60,7 +62,7 @@ UUID = False
 ORIG_MYCNF = "/etc/mysql/my.cnf"
 FINAL_MYCNF = "/var/lib/mysql/my.cnf"
 TMP_MYCNF = "/tmp/my.cnf.tmp"
-DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.%dM"
+DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.${mem}M"
 MYSQL_BASE_DIR = "/var/lib/mysql"
 
 CONF = cfg.CONF
@@ -96,10 +98,10 @@ def get_engine():
             return ENGINE
         #ENGINE = create_engine(name_or_url=url)
         pwd = get_auth_password()
-        ENGINE = create_engine("mysql://%s:%s@localhost:3306" %
-                               (ADMIN_USER_NAME, pwd.strip()),
-                               pool_recycle=7200, echo=True,
-                               listeners=[KeepAliveConnection()])
+        ENGINE = sqlalchemy.create_engine("mysql://%s:%s@localhost:3306" %
+                                          (ADMIN_USER_NAME, pwd.strip()),
+                                          pool_recycle=7200, echo=True,
+                                          listeners=[KeepAliveConnection()])
         return ENGINE
 
 
@@ -116,7 +118,7 @@ def load_mysqld_options():
             else:
                 args[item.lstrip("--")] = None
         return args
-    except ProcessExecutionError as e:
+    except exception.ProcessExecutionError as e:
         return None
 
 
@@ -181,7 +183,7 @@ class MySqlAppStatus(object):
                 "ping", run_as_root=True)
             LOG.info("Service Status is RUNNING.")
             return rd_models.ServiceStatuses.RUNNING
-        except ProcessExecutionError as e:
+        except exception.ProcessExecutionError as e:
             LOG.error("Process execution ")
             try:
                 out, err = utils.execute_with_timeout("/bin/ps", "-C",
@@ -191,7 +193,7 @@ class MySqlAppStatus(object):
                 # where the mysql service is up, but unresponsive
                 LOG.info("Service Status is BLOCKED.")
                 return rd_models.ServiceStatuses.BLOCKED
-            except ProcessExecutionError as e:
+            except exception.ProcessExecutionError as e:
                 if not MYSQLD_ARGS:
                     MYSQLD_ARGS = load_mysqld_options()
                 pid_file = MYSQLD_ARGS.get('pid_file',
@@ -226,8 +228,8 @@ class MySqlAppStatus(object):
     @staticmethod
     def _load_status():
         """Loads the status from the database."""
-        id = CONF.guest_id
-        return rd_models.InstanceServiceStatus.find_by(instance_id=id)
+        inst_id = CONF.guest_id
+        return rd_models.InstanceServiceStatus.find_by(instance_id=inst_id)
 
     def set_status(self, status):
         """Changes the status of the MySQL app in the database."""
@@ -259,7 +261,7 @@ class MySqlAppStatus(object):
         """
         WAIT_TIME = 3
         waited_time = 0
-        while(waited_time < max_time):
+        while waited_time < max_time:
             time.sleep(WAIT_TIME)
             waited_time += WAIT_TIME
             LOG.info("Waiting for MySQL status to change to %s..." % status)
@@ -397,40 +399,6 @@ class MySqlAdmin(object):
             t = text(str(du))
             client.execute(t)
 
-    def enable_root(self):
-        """Enable the root user global access and/or reset the root password"""
-        user = models.MySQLUser()
-        user.name = "root"
-        user.host = "%"
-        user.password = generate_random_password()
-        with LocalSqlClient(get_engine()) as client:
-            try:
-                cu = query.CreateUser(user.name, host=user.host)
-                t = text(str(cu))
-                client.execute(t, **cu.keyArgs)
-            except exc.OperationalError as err:
-                # Ignore, user is already created, just reset the password
-                # TODO(rnirmal): More fine grained error checking later on
-                LOG.debug(err)
-        with LocalSqlClient(get_engine()) as client:
-            uu = query.UpdateUser(user.name, host=user.host,
-                                  clear=user.password)
-            t = text(str(uu))
-            client.execute(t)
-
-            LOG.debug("CONF.root_grant: %s CONF.root_grant_option: %s" %
-                      (CONF.root_grant, CONF.root_grant_option))
-
-            g = query.Grant(permissions=CONF.root_grant,
-                            user=user.name,
-                            host=user.host,
-                            grant_option=CONF.root_grant_option,
-                            clear=user.password)
-
-            t = text(str(g))
-            client.execute(t)
-            return user.serialize()
-
     def get_user(self, username, hostname):
         user = self._get_user(username, hostname)
         if not user:
@@ -442,7 +410,7 @@ class MySqlAdmin(object):
         user = models.MySQLUser()
         try:
             user.name = username  # Could possibly throw a BadRequest here.
-        except Exception.ValueError as ve:
+        except exceptions.ValueError as ve:
             raise exception.BadRequest("Username %s is not valid: %s"
                                        % (username, ve.message))
         with LocalSqlClient(get_engine()) as client:
@@ -478,11 +446,15 @@ class MySqlAdmin(object):
 
     def is_root_enabled(self):
         """Return True if root access is enabled; False otherwise."""
-        with LocalSqlClient(get_engine()) as client:
-            t = text(query.ROOT_ENABLED)
-            result = client.execute(t)
-            LOG.debug("result = " + str(result))
-            return result.rowcount != 0
+        return MySqlRootAccess.is_root_enabled()
+
+    def enable_root(self):
+        """Enable the root user global access and/or reset the root password"""
+        return MySqlRootAccess.enable_root()
+
+    def report_root_enabled(self, context=None):
+        """Records in the Root History that the root is enabled"""
+        return MySqlRootAccess.report_root_enabled(context)
 
     def list_databases(self, limit=None, marker=None, include_marker=False):
         """List databases the user created on this mysql instance"""
@@ -610,8 +582,8 @@ class MySqlAdmin(object):
 class KeepAliveConnection(interfaces.PoolListener):
     """
     A connection pool listener that ensures live connections are returned
-    from the connecction pool at checkout. This alleviates the problem of
-    MySQL connections timeing out.
+    from the connection pool at checkout. This alleviates the problem of
+    MySQL connections timing out.
     """
 
     def checkout(self, dbapi_con, con_record, con_proxy):
@@ -672,15 +644,18 @@ class MySqlApp(object):
             self._install_mysql()
         LOG.info(_("Dbaas install_if_needed complete"))
 
-    def secure(self, memory_mb):
-        LOG.info(_("Generating root password..."))
+    def secure(self, memory_mb, keep_root=False):
+        LOG.info(_("Generating admin password..."))
         admin_password = generate_random_password()
 
-        engine = create_engine("mysql://root:@localhost:3306", echo=True)
+        engine = sqlalchemy.create_engine("mysql://root:@localhost:3306",
+                                          echo=True)
         with LocalSqlClient(engine) as client:
-            self._generate_root_password(client)
+            LOG.info(_("Keep Root is set to %s" % keep_root))
+            if not keep_root:
+                self._generate_root_password(client)
+                self._remove_remote_root_access(client)
             self._remove_anonymous_user(client)
-            self._remove_remote_root_access(client)
             self._create_admin_user(client, admin_password)
 
         self.stop_mysql()
@@ -698,14 +673,14 @@ class MySqlApp(object):
         #TODO(rnirmal): Add checks to make sure the package got installed
 
     def _enable_mysql_on_boot(self):
-        '''
+        """
         There is a difference between the init.d mechanism and the upstart
         The stock mysql uses the upstart mechanism, therefore, there is a
         mysql.conf file responsible for the job. to toggle enable/disable
         on boot one needs to modify this file. Percona uses the init.d
         mechanism and there is no mysql.conf file. Instead, the update-rc.d
         command needs to be used to modify the /etc/rc#.d/[S/K]##mysql links
-        '''
+        """
         LOG.info("Enabling mysql on boot.")
         conf = "/etc/init/mysql.conf"
         if os.path.isfile(conf):
@@ -716,14 +691,14 @@ class MySqlApp(object):
         utils.execute_with_timeout(command, with_shell=True)
 
     def _disable_mysql_on_boot(self):
-        '''
+        """
         There is a difference between the init.d mechanism and the upstart
         The stock mysql uses the upstart mechanism, therefore, there is a
         mysql.conf file responsible for the job. to toggle enable/disable
         on boot one needs to modify this file. Percona uses the init.d
         mechanism and there is no mysql.conf file. Instead, the update-rc.d
         command needs to be used to modify the /etc/rc#.d/[S/K]##mysql links
-        '''
+        """
         LOG.info("Disabling mysql on boot.")
         conf = "/etc/init/mysql.conf"
         if os.path.isfile(conf):
@@ -800,7 +775,7 @@ class MySqlApp(object):
             try:
                 utils.execute_with_timeout("sudo", "rm", "%s/ib_logfile%d"
                                            % (MYSQL_BASE_DIR, index))
-            except ProcessExecutionError as pe:
+            except exception.ProcessExecutionError as pe:
                 # On restarts, sometimes these are wiped. So it can be a race
                 # to have MySQL start up before it's restarted and these have
                 # to be deleted. That's why its ok if they aren't found.
@@ -829,7 +804,8 @@ class MySqlApp(object):
         pkg.pkg_install("dbaas-mycnf", self.TIME_OUT)
 
         LOG.info(_("Replacing my.cnf with template."))
-        template_path = DBAAS_MYCNF % update_memory_mb
+        template_path = string.Template(DBAAS_MYCNF).substitute(
+            mem=update_memory_mb)
 
         # replace my.cnf with template.
         self._replace_mycnf_with_template(template_path, ORIG_MYCNF)
@@ -849,14 +825,14 @@ class MySqlApp(object):
     def start_mysql(self, update_db=False):
         LOG.info(_("Starting mysql..."))
         # This is the site of all the trouble in the restart tests.
-        # Essentially what happens is thaty mysql start fails, but does not
+        # Essentially what happens is that mysql start fails, but does not
         # die. It is then impossible to kill the original, so
 
         self._enable_mysql_on_boot()
 
         try:
             utils.execute_with_timeout("sudo", "/etc/init.d/mysql", "start")
-        except ProcessExecutionError:
+        except exception.ProcessExecutionError:
             # it seems mysql (percona, at least) might come back with [Fail]
             # but actually come up ok. we're looking into the timing issue on
             # parallel, but for now, we'd like to give it one more chance to
@@ -871,7 +847,7 @@ class MySqlApp(object):
             # don't let a rouge process wander around.
             try:
                 utils.execute_with_timeout("sudo", "pkill", "-9", "mysql")
-            except ProcessExecutionError, p:
+            except exception.ProcessExecutionError, p:
                 LOG.error("Error killing stalled mysql start command.")
                 LOG.error(p)
             # There's nothing more we can do...
@@ -909,11 +885,61 @@ class Interrogator(object):
             raise RuntimeError("Filesystem not found (%s) : %s"
                                % (fs_path, err))
         stats = out.split()
-        output = {}
-        output['block_size'] = int(stats[4])
-        output['total_blocks'] = int(stats[6])
-        output['free_blocks'] = int(stats[7])
-        output['total'] = int(stats[6]) * int(stats[4])
-        output['free'] = int(stats[7]) * int(stats[4])
+        output = {'block_size': int(stats[4]),
+                  'total_blocks': int(stats[6]),
+                  'free_blocks': int(stats[7]),
+                  'total': int(stats[6]) * int(stats[4]),
+                  'free': int(stats[7]) * int(stats[4])}
         output['used'] = int(output['total']) - int(output['free'])
         return output
+
+
+class MySqlRootAccess(object):
+
+    @classmethod
+    def is_root_enabled(cls):
+        """Return True if root access is enabled; False otherwise."""
+        with LocalSqlClient(get_engine()) as client:
+            t = text(query.ROOT_ENABLED)
+            result = client.execute(t)
+            LOG.debug("Found %s with remote root access" % result.rowcount)
+            return result.rowcount != 0
+
+    @classmethod
+    def enable_root(cls):
+        """Enable the root user global access and/or reset the root password"""
+        user = models.MySQLUser()
+        user.name = "root"
+        user.host = "%"
+        user.password = generate_random_password()
+        with LocalSqlClient(get_engine()) as client:
+            try:
+                cu = query.CreateUser(user.name, host=user.host)
+                t = text(str(cu))
+                client.execute(t, **cu.keyArgs)
+            except exc.OperationalError as err:
+                # Ignore, user is already created, just reset the password
+                # TODO(rnirmal): More fine grained error checking later on
+                LOG.debug(err)
+        with LocalSqlClient(get_engine()) as client:
+            uu = query.UpdateUser(user.name, host=user.host,
+                                  clear=user.password)
+            t = text(str(uu))
+            client.execute(t)
+
+            LOG.debug("CONF.root_grant: %s CONF.root_grant_option: %s" %
+                      (CONF.root_grant, CONF.root_grant_option))
+
+            g = query.Grant(permissions=CONF.root_grant,
+                            user=user.name,
+                            host=user.host,
+                            grant_option=CONF.root_grant_option,
+                            clear=user.password)
+
+            t = text(str(g))
+            client.execute(t)
+            return user.serialize()
+
+    @classmethod
+    def report_root_enabled(cls, context):
+        return RootHistory.create(context, CONF.guest_id, 'root')

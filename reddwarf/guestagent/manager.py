@@ -65,6 +65,16 @@ class Manager(periodic_task.PeriodicTasks):
     def is_root_enabled(self, context):
         return dbaas.MySqlAdmin().is_root_enabled()
 
+    def _perform_restore(self, backup_id, context):
+        if backup_id:
+            LOG.info(_("Restoring database from backup %s" % backup_id))
+            backup.restore(context, backup_id)
+            LOG.info(_("Restored database"))
+            if self.is_root_enabled(context):
+                dbaas.MySqlAdmin().report_root_enabled(context)
+                return True
+        return False
+
     def prepare(self, context, databases, memory_mb, users, device_path=None,
                 mount_point=None, backup_id=None):
         """Makes ready DBAAS on a Guest container."""
@@ -89,12 +99,10 @@ class Manager(periodic_task.PeriodicTasks):
             if restart_mysql:
                 app.start_mysql()
         app.install_if_needed()
-        if backup_id:
-            LOG.info(_("Restoring database from backup %s" % backup_id))
-            backup.restore(context, backup_id)
-            LOG.info(_("Restored database"))
-        LOG.info("Securing mysql now.")
-        app.secure(memory_mb)
+        keep_root = self._perform_restore(backup_id, context)
+        LOG.info(_("Securing mysql now."))
+        app.secure(memory_mb, keep_root=keep_root)
+
         self.create_database(databases)
         self.create_user(users)
         LOG.info('"prepare" call has finished.')

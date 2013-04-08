@@ -131,8 +131,11 @@ class GuestAgentManagerTest(testtools.TestCase):
         self._prepare_dynamic(backup_id='backup_id_123abc')
 
     def test_prepare_mysql_from_backup(self):
+        self._prepare_dynamic(backup_id='backup_id_123abc')
+
+    def test_prepare_mysql_from_backup_with_root(self):
         self._prepare_dynamic(backup_id='backup_id_123abc',
-                              is_root_enabled=False)
+                              is_root_enabled=True)
 
     def _prepare_dynamic(self, device_path='/dev/vdb', is_mysql_installed=True,
                          backup_id=None, is_root_enabled=False):
@@ -160,8 +163,11 @@ class GuestAgentManagerTest(testtools.TestCase):
         when(backup).restore(self.context, backup_id).thenReturn(None)
         when(dbaas.MySqlApp).secure().thenReturn(None)
         when(dbaas.MySqlApp).is_installed().thenReturn(is_mysql_installed)
+        when(dbaas.MySqlAdmin).is_root_enabled().thenReturn(is_root_enabled)
         when(dbaas.MySqlAdmin).create_user().thenReturn(None)
         when(dbaas.MySqlAdmin).create_database().thenReturn(None)
+        when(dbaas.MySqlAdmin).report_root_enabled(self.context).thenReturn(
+            None)
 
         when(os.path).exists(any()).thenReturn(is_mysql_installed)
         # invocation
@@ -180,9 +186,12 @@ class GuestAgentManagerTest(testtools.TestCase):
         if backup_id:
             verify(backup).restore(self.context, backup_id)
         verify(dbaas.MySqlApp).install_if_needed()
-        verify(dbaas.MySqlApp).secure('2048')
+        verify(dbaas.MySqlApp).secure('2048', keep_root=is_root_enabled)
         verify(dbaas.MySqlAdmin, never).create_database()
         verify(dbaas.MySqlAdmin, never).create_user()
+        times_report = 1 if is_root_enabled else 0
+        verify(dbaas.MySqlAdmin, times=times_report).report_root_enabled(
+            self.context)
 
     def test_restart(self):
         mock_status = mock()
