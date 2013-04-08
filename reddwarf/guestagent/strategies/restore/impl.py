@@ -29,3 +29,4 @@ class MySQLDump(base.RestoreRunner):
 class InnoBackupEx(base.RestoreRunner):
     """ Implementation of Restore Strategy for InnoBackupEx """
     __strategy_name__ = 'innobackupex'
+    restore_cmd = "sudo xbstream -x -C %(restore_location)s"

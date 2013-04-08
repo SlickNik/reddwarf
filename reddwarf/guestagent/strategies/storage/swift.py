@@ -17,9 +17,14 @@
 from reddwarf.guestagent.strategies.storage import base
 from reddwarf.openstack.common import log as logging
 from reddwarf.common.remote import create_swift_client
+from eventlet.green import subprocess
 
 
 LOG = logging.getLogger(__name__)
+
+
+class DownloadError(Exception):
+    """Error running the Swift Download Command."""
 
 
 class SwiftStorage(base.Storage):
@@ -68,5 +73,51 @@ class SwiftStorage(base.Storage):
             return (True, "Successfully saved data to Swift!",
                     checksum, location)
 
-    def load(self, context):
+    def load(self, context, storage_url, container, filename):
         """ Restore a backup from the input stream to the restore_location """
+        stream = SwiftDownloadStream(auth_token=context.auth_token,
+                                     storage_url=storage_url,
+                                     container=container,
+                                     filename=filename)
+        return stream
+
+
+class SwiftDownloadStream(object):
+    """ Class to do the actual swift download using the swiftclient """
+
+    cmd = "swift --os-auth-token=%(auth_token)s \
+                 --os-storage-url=%(storage_url)s \
+                 download %(container)s %(filename)s -o -"
+
+    def __init__(self, **kwargs):
+        self.process = None
+        self.pid = None
+        self.cmd = self.cmd % kwargs
+
+    def __enter__(self):
+        """Start up the process"""
+        self.run()
+        return self.process.stdout
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Clean up everything."""
+        if exc_type is None:
+            # See if the process reported an error
+            try:
+                err = self.process.stderr.read()
+                if err:
+                    raise DownloadError(err)
+            except OSError:
+                pass
+        # Make sure to terminate the process
+        try:
+            self.process.terminate()
+        except OSError:
+            # Already stopped
+            pass
+
+    def run(self):
+        self.process = subprocess.Popen(self.cmd, shell=True,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
+        self.pid = self.process.pid

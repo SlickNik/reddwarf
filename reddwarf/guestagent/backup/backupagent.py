@@ -74,8 +74,26 @@ class BackupAgent(object):
     def execute_restore(self, context, backup_id):
         LOG.debug("Searching for backup instance %s", backup_id)
         backup = DBBackup.find_by(id=backup_id)
+        storage_url = "/".join(backup.location.split('/')[:-2])
+        container = backup.location.split('/')[-2]
+        filename = backup.location.split('/')[-1]
+
         restore_runner = self._get_restore_runner(backup.backup_type)
-        raise NotImplementedError('execute restore is not yet implemented')
+
+        swift_storage = get_storage_strategy(
+            CONF.storage_strategy,
+            CONF.storage_namespace)(context)
+
+        download_stream = swift_storage.load(context,
+                                             storage_url,
+                                             container,
+                                             filename)
+
+        with restore_runner(restore_stream=download_stream,
+                            restore_location="/var/lib/mysql") as restore:
+            pass
+
+        # Prepare step still needs to be run, if needed.
 
     def _get_restore_runner(self, backup_type):
         """Returns the RestoreRunner associated with this backup type."""
