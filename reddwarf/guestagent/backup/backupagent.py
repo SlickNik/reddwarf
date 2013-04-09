@@ -34,7 +34,6 @@ BACKUP_CONTAINER = CONF.backup_swift_container
 
 
 class BackupAgent(object):
-
     def execute_backup(self, context, backup_id, runner=RUNNER):
         LOG.debug("Searching for backup instance %s", backup_id)
         backup = DBBackup.find_by(id=backup_id)
@@ -51,25 +50,26 @@ class BackupAgent(object):
             CONF.storage_namespace)(context)
 
         with runner(filename=backup_id, user=user, password=password) as bkup:
-
             LOG.info("Starting Backup %s", backup_id)
             success, note, checksum, location = swiftStorage.save(
                 BACKUP_CONTAINER,
                 bkup)
 
-            if not success:
-                raise BackupError(backup.note)
-
-            LOG.info("Backup %s file size: %s", backup_id, bkup.content_length)
-            LOG.info('Backup %s file checksum: %s', backup_id, checksum)
-            LOG.info('Backup %s location: %s', backup_id, location)
+        LOG.info("Backup %s completed status: %s", backup_id, success)
+        LOG.info("Backup %s file size: %s", backup_id, bkup.content_length)
+        LOG.info('Backup %s file checksum: %s', backup_id, checksum)
+        LOG.info('Backup %s location: %s', backup_id, location)
 
         LOG.info("Saving %s Backup Info to model", backup_id)
-        backup.state = BackupState.COMPLETED
+        backup.state = BackupState.COMPLETED if success else BackupState.FAILED
         backup.checksum = checksum
         backup.location = location
+        backup.note = note
         backup.backup_type = bkup.backup_type
         backup.save()
+
+        if not success:
+            raise BackupError(backup.note)
 
     def execute_restore(self, context, backup_id):
         backup = DBBackup.find_by(id=backup_id)
@@ -78,8 +78,9 @@ class BackupAgent(object):
 
     def _get_restore_runner(self, backup_type):
         """Returns the RestoreRunner associated with this backup type."""
-        runner = get_restore_strategy(backup_type,
-                                      CONF.restore_namespace)
-        if runner is None:
+        try:
+            runner = get_restore_strategy(backup_type,
+                                          CONF.restore_namespace)
+        except ImportError:
             raise UnknownBackupType("Unknown Backup type: %s" % backup_type)
         return runner

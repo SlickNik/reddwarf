@@ -12,7 +12,7 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-from reddwarf.guestagent import strategy
+from reddwarf.guestagent.strategy import Strategy
 from reddwarf.openstack.common import log as logging
 
 LOG = logging.getLogger(__name__)
@@ -20,4 +20,4 @@ LOG = logging.getLogger(__name__)
 
 def get_restore_strategy(restore_driver, ns=__name__):
     LOG.debug("Getting restore strategy: %s" % restore_driver)
-    return strategy.get_strategy(restore_driver, ns)
+    return Strategy.get_strategy(restore_driver, ns)

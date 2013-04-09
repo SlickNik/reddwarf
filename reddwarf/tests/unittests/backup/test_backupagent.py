@@ -18,15 +18,15 @@ import hashlib
 import testtools
 from testtools.matchers import Equals, Is
 from webob.exc import HTTPNotFound
-from mockito import when, verify, unstub, mock
+from mockito import when, verify, unstub, mock, any
 
 from reddwarf.backup.models import DBBackup
 from reddwarf.backup.models import BackupState
 from reddwarf.common.exception import ModelNotFoundError
 from reddwarf.db.models import DatabaseModelBase
 from reddwarf.guestagent.backup import backupagent
-from reddwarf.guestagent.backup.runner import BackupRunner
-from reddwarf.guestagent.backup.runner import UnknownBackupType
+from reddwarf.guestagent.strategies.backup.base import BackupRunner
+from reddwarf.guestagent.strategies.backup.base import UnknownBackupType
 
 
 def create_fake_data():
@@ -83,6 +83,10 @@ class MockSwift(object):
         self.etag.update(self.store)
         return self.etag.hexdigest()
 
+    def save(self, save_location, stream):
+        location = '%s/%s/%s' % (self.url, save_location, stream.manifest)
+        return True, 'w00t', 'fake-checksum', location
+
 
 BACKUP_NS = 'reddwarf.guestagent.strategies.backup'
 
@@ -92,13 +96,14 @@ class BackupAgentTest(testtools.TestCase):
     def setUp(self):
         super(BackupAgentTest, self).setUp()
         when(backupagent).get_auth_password().thenReturn('secret')
-        when(backupagent).create_swift_client(None).thenReturn(MockSwift())
+        when(backupagent).get_storage_strategy(any(), any()).thenReturn(
+            MockSwift)
 
     def tearDown(self):
         super(BackupAgentTest, self).tearDown()
         unstub()
 
-    def test_execute_backup(self, *args):
+    def test_execute_backup(self):
         """This test should ensure backup agent
                 ensures that backup and storage is not running
                 resolves backup instance
@@ -119,13 +124,14 @@ class BackupAgentTest(testtools.TestCase):
                         Equals('http://mockswift/v1/z_CLOUDDB_BACKUPS/123'))
         verify(backup, times=2).save()
 
-    def test_execute_lossy_backup(self, *args):
+    def test_execute_lossy_backup(self):
         """This test verifies that incomplete writes to swift will fail."""
         backup = mock(DBBackup)
         when(backupagent).get_auth_password().thenReturn('secret')
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backup).save().thenReturn(backup)
-
+        when(MockSwift).save(any(), any()).thenReturn((False, 'Error', 'y',
+                                                       'z'))
         agent = backupagent.BackupAgent()
 
         self.assertRaises(backupagent.BackupError, agent.execute_backup,
@@ -133,8 +139,7 @@ class BackupAgentTest(testtools.TestCase):
                           runner=MockLossyBackup)
 
         self.assertThat(backup.state, Is(BackupState.FAILED))
-        self.assertThat(backup.note,
-                        Equals("Error sending data to cloud files!"))
+        self.assertThat(backup.note, Equals("Error"))
         verify(backup, times=2).save()
 
     def test_execute_backup_model_exception(self):
@@ -159,12 +164,12 @@ class BackupAgentTest(testtools.TestCase):
         """
         backup = mock(DBBackup)
         runner = mock()
-        backup.backup_type = 'foo'
+        backup.backup_type = 'InnoBackupEx'
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backup).save().thenReturn(backup)
 
         agent = backupagent.BackupAgent()
-        agent.register_restore_runner('foo', runner)
+
         self.assertRaises(NotImplementedError, agent.execute_restore,
                           context=None, backup_id='123')
 

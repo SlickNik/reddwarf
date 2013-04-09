@@ -14,14 +14,14 @@
 #    under the License.
 #
 
-from reddwarf.guestagent.strategies.backup import base
+from reddwarf.guestagent.strategies.restore import base
 from reddwarf.openstack.common import log as logging
 
 
 LOG = logging.getLogger(__name__)
 
 
-class MySQLDump(base.BackupRunner):
+class MySQLDump(base.RestoreRunner):
     """ Implementation of Restore Strategy for MySQLDump """
     __strategy_name__ = 'mysqldump'
 
