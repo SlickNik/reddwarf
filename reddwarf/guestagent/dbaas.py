@@ -62,7 +62,7 @@ UUID = False
 ORIG_MYCNF = "/etc/mysql/my.cnf"
 FINAL_MYCNF = "/var/lib/mysql/my.cnf"
 TMP_MYCNF = "/tmp/my.cnf.tmp"
-DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.${mem}M"
+DBAAS_MYCNF = "/etc/dbaas/my.cnf/my.cnf.%dM"
 MYSQL_BASE_DIR = "/var/lib/mysql"
 
 CONF = cfg.CONF
@@ -804,9 +804,7 @@ class MySqlApp(object):
         pkg.pkg_install("dbaas-mycnf", self.TIME_OUT)
 
         LOG.info(_("Replacing my.cnf with template."))
-        template_path = string.Template(DBAAS_MYCNF).substitute(
-            mem=update_memory_mb)
-
+        template_path = DBAAS_MYCNF % update_memory_mb
         # replace my.cnf with template.
         self._replace_mycnf_with_template(template_path, ORIG_MYCNF)
 

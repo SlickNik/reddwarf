@@ -763,7 +763,7 @@ class MySqlAppMockTest(testtools.TestCase):
             any(), any(), any()).thenReturn(True)
         app = MySqlApp(mock_status)
         # invocation
-        app.secure('2048')
+        app.secure(2048)
         # verification
         verify(mock_conn, atleast=4).execute(any())
         inorder.verify(mock_status).wait_for_real_status_to_change_to(
@@ -781,21 +781,12 @@ class MySqlAppMockTest(testtools.TestCase):
             pkg.PkgPackageStateError("Install error"))
         # skip writing the file for now
         when(os.path).isfile(any()).thenReturn(False)
-        # when(utils).execute_with_timeout(
-        #     "sudo", "chmod", any(), any()).thenReturn(None)
-        # mock_file = MySqlAppMockTest.FakeFile()
-        # when(__builtin__).open(
-        #     "/etc/mysql/my.cnf", any()).thenReturn(mock_file)
-        # when(__builtin__).open(
-        #     "/etc/dbaas/my.cnf/my.cnf.2048M", any()).thenReturn(mock_file)
-        # when(__builtin__).open(
-        #     "/tmp/my.cnf.tmp", any()).thenReturn(mock_file)
         mock_status = mock(MySqlAppStatus)
         when(mock_status).wait_for_real_status_to_change_to(
             any(), any(), any()).thenReturn(True)
         app = MySqlApp(mock_status)
 
-        self.assertRaises(pkg.PkgPackageStateError, app.secure, '2048')
+        self.assertRaises(pkg.PkgPackageStateError, app.secure, 2048)
 
         verify(mock_conn, atleast=4).execute(any())
         inorder.verify(mock_status).wait_for_real_status_to_change_to(
@@ -824,7 +815,7 @@ class MySqlAppMockTest(testtools.TestCase):
             any(), any(), any()).thenReturn(True)
         app = MySqlApp(mock_status)
 
-        app.secure('2048', True)
+        app.secure(2048, True)
         verify(mock_conn, never).execute(TextClauseMatcher('root'))
 
 

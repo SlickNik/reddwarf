@@ -72,6 +72,7 @@ class BackupAgent(object):
             raise BackupError(backup.note)
 
     def execute_restore(self, context, backup_id):
+        LOG.debug("Searching for backup instance %s", backup_id)
         backup = DBBackup.find_by(id=backup_id)
         restore_runner = self._get_restore_runner(backup.backup_type)
         raise NotImplementedError('execute restore is not yet implemented')
@@ -79,8 +80,7 @@ class BackupAgent(object):
     def _get_restore_runner(self, backup_type):
         """Returns the RestoreRunner associated with this backup type."""
         try:
-            runner = get_restore_strategy(backup_type,
-                                          CONF.restore_namespace)
+            runner = get_restore_strategy(backup_type, CONF.restore_namespace)
         except ImportError:
             raise UnknownBackupType("Unknown Backup type: %s" % backup_type)
         return runner

@@ -11,8 +11,6 @@
 #WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #See the License for the specific language governing permissions and
 #limitations under the License.
-from io import IOBase
-
 
 import hashlib
 import testtools
@@ -163,7 +161,6 @@ class BackupAgentTest(testtools.TestCase):
                 reports status
         """
         backup = mock(DBBackup)
-        runner = mock()
         backup.backup_type = 'InnoBackupEx'
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backup).save().thenReturn(backup)
