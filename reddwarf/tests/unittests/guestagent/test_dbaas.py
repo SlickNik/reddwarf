@@ -724,7 +724,14 @@ def mock_admin_sql_connection():
 
 class MySqlAppMockTest(testtools.TestCase):
 
-    class FakeFile(object):
+    @classmethod
+    def stub_file(cls, filename):
+        return MySqlAppMockTest.StubFile(filename)
+
+    class StubFile(object):
+        def __init__(self, filename):
+            when(__builtin__).open(filename, any()).thenReturn(self)
+
         def next(self):
             raise StopIteration
 
@@ -751,13 +758,9 @@ class MySqlAppMockTest(testtools.TestCase):
         when(os.path).isfile(any()).thenReturn(False)
         when(utils).execute_with_timeout(
             "sudo", "chmod", any(), any()).thenReturn(None)
-        mock_file = MySqlAppMockTest.FakeFile()
-        when(__builtin__).open(
-            "/etc/mysql/my.cnf", any()).thenReturn(mock_file)
-        when(__builtin__).open(
-            "/etc/dbaas/my.cnf/my.cnf.2048M", any()).thenReturn(mock_file)
-        when(__builtin__).open(
-            "/tmp/my.cnf.tmp", any()).thenReturn(mock_file)
+        MySqlAppMockTest.stub_file("/etc/mysql/my.cnf")
+        MySqlAppMockTest.stub_file("/etc/dbaas/my.cnf/my.cnf.2048M")
+        MySqlAppMockTest.stub_file("/tmp/my.cnf.tmp")
         mock_status = mock(MySqlAppStatus)
         when(mock_status).wait_for_real_status_to_change_to(
             any(), any(), any()).thenReturn(True)
@@ -804,12 +807,9 @@ class MySqlAppMockTest(testtools.TestCase):
         when(os.path).isfile(any()).thenReturn(False)
         when(utils).execute_with_timeout(
             "sudo", "chmod", any(), any()).thenReturn(None)
-        mock_file = MySqlAppMockTest.FakeFile()
-        when(__builtin__).open("/etc/mysql/my.cnf", any()).thenReturn(
-            mock_file)
-        when(__builtin__).open(
-            "/etc/dbaas/my.cnf/my.cnf.2048M", any()).thenReturn(mock_file)
-        when(__builtin__).open("/tmp/my.cnf.tmp", any()).thenReturn(mock_file)
+        MySqlAppMockTest.stub_file("/etc/mysql/my.cnf")
+        MySqlAppMockTest.stub_file("/etc/dbaas/my.cnf/my.cnf.2048M")
+        MySqlAppMockTest.stub_file("/tmp/my.cnf.tmp")
         mock_status = mock(MySqlAppStatus)
         when(mock_status).wait_for_real_status_to_change_to(
             any(), any(), any()).thenReturn(True)
