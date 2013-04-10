@@ -24,6 +24,10 @@ LOG = logging.getLogger(__name__)
 class MySQLDump(base.RestoreRunner):
     """ Implementation of Restore Strategy for MySQLDump """
     __strategy_name__ = 'mysqldump'
+    restore_cmd = 'gzip -d | mysql'\
+                  '--password=%(password)s'\
+                  ' -u %(user)s'
+
 
 
 class InnoBackupEx(base.RestoreRunner):

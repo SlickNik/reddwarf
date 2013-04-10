@@ -29,7 +29,6 @@ class MySQLDump(base.BackupRunner):
           ' --all-databases'\
           ' --opt'\
           ' --compact'\
-          ' -h %(host)s '\
           '--password=%(password)s'\
           ' -u %(user)s'\
           ' | gzip'
