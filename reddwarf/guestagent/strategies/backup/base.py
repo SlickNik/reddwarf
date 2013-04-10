@@ -18,7 +18,7 @@ import hashlib
 
 from reddwarf.guestagent.strategy import Strategy
 from reddwarf.openstack.common import log as logging
-from reddwarf.common import cfg
+from reddwarf.common import cfg, utils
 from eventlet.green import subprocess
 
 CONF = cfg.CONF
@@ -90,13 +90,8 @@ class BackupRunner(Strategy):
     def __exit__(self, exc_type, exc_value, traceback):
         """Clean up everything."""
         if exc_type is None:
-            # See if the process reported an error
-            try:
-                err = self.process.stderr.read()
-                if err:
-                    raise BackupError(err)
-            except OSError:
-                pass
+            utils.raise_if_process_errored(self.process, BackupError)
+
         # Make sure to terminate the process
         try:
             self.process.terminate()

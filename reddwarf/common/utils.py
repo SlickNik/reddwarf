@@ -82,6 +82,15 @@ def utcnow():
     return datetime.datetime.utcnow()
 
 
+def raise_if_process_errored(process, exception):
+    try:
+        err = process.stderr.read()
+        if err:
+            raise exception(err)
+    except OSError:
+        pass
+
+
 class cached_property(object):
     """A decorator that converts a function into a lazy property.
 

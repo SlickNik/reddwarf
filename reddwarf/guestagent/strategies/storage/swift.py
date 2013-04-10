@@ -17,9 +17,11 @@
 from reddwarf.guestagent.strategies.storage import base
 from reddwarf.openstack.common import log as logging
 from reddwarf.common.remote import create_swift_client
+from reddwarf.common import utils
 from eventlet.green import subprocess
+import zlib
 
-
+UNZIPPER = zlib.decompressobj(16+zlib.MAX_WBITS)
 LOG = logging.getLogger(__name__)
 
 
@@ -73,17 +75,26 @@ class SwiftStorage(base.Storage):
             return (True, "Successfully saved data to Swift!",
                     checksum, location)
 
-    def load(self, context, storage_url, container, filename):
+    def _explodeLocation(self, location):
+        storage_url = "/".join(location.split('/')[:-2])
+        container = location.split('/')[-2]
+        filename = location.split('/')[-1]
+        return storage_url, container, filename
+
+    def load(self, context, location, is_zipped):
         """ Restore a backup from the input stream to the restore_location """
-        stream = SwiftDownloadStream(auth_token=context.auth_token,
-                                     storage_url=storage_url,
-                                     container=container,
-                                     filename=filename)
-        return stream
+
+        storage_url, container, filename = self._explodeLocation(location)
+
+        return SwiftDownloadStream(auth_token=context.auth_token,
+                                   storage_url=storage_url,
+                                   container=container,
+                                   filename=filename,
+                                   is_zipped=is_zipped)
 
 
 class SwiftDownloadStream(object):
-    """ Class to do the actual swift download using the swiftclient """
+    """ Class to do the actual swift download  using the swiftclient """
 
     cmd = "swift --os-auth-token=%(auth_token)s \
                  --os-storage-url=%(storage_url)s \
@@ -92,29 +103,30 @@ class SwiftDownloadStream(object):
     def __init__(self, **kwargs):
         self.process = None
         self.pid = None
+        self.is_zipped = kwargs['is_zipped']
         self.cmd = self.cmd % kwargs
 
     def __enter__(self):
         """Start up the process"""
         self.run()
-        return self.process.stdout
+        return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Clean up everything."""
         if exc_type is None:
-            # See if the process reported an error
-            try:
-                err = self.process.stderr.read()
-                if err:
-                    raise DownloadError(err)
-            except OSError:
-                pass
+            utils.raise_if_process_errored(self.process, DownloadError)
+
         # Make sure to terminate the process
         try:
             self.process.terminate()
         except OSError:
             # Already stopped
             pass
+
+    def read(self, *args, **kwargs):
+        if not self.is_zipped:
+            return self.process.stdout.read(*args, **kwargs)
+        return UNZIPPER.decompress(self.process.stdout.read(*args, **kwargs))
 
     def run(self):
         self.process = subprocess.Popen(self.cmd, shell=True,

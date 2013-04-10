@@ -17,21 +17,22 @@
 from reddwarf.guestagent.strategies.restore import base
 from reddwarf.openstack.common import log as logging
 
-
 LOG = logging.getLogger(__name__)
 
 
 class MySQLDump(base.RestoreRunner):
     """ Implementation of Restore Strategy for MySQLDump """
     __strategy_name__ = 'mysqldump'
-    restore_cmd = 'gzip -d | mysql'\
-                  '--password=%(password)s'\
-                  ' -u %(user)s'
-
+    is_zipped = True
+    restore_cmd = 'mysql '\
+                  '--password=%(password)s '\
+                  '-u %(user)s'
 
 
 class InnoBackupEx(base.RestoreRunner):
     """ Implementation of Restore Strategy for InnoBackupEx """
     __strategy_name__ = 'innobackupex'
-    restore_cmd = "gzip -d | sudo xbstream -C %(restore_location)s"
-    prepare_cmd = "sudo innobackupex --apply=log %(restore_location)s"
+    is_zipped = True
+    restore_cmd = 'sudo xbstream -x %(restore_location)s'
+    prepare_cmd = 'sudo innobackupex --apply-log %(restore_location)s '\
+                  '2>/tmp/innoprepare.log'

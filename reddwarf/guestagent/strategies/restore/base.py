@@ -14,7 +14,7 @@
 #    under the License.
 #
 from reddwarf.guestagent.strategy import Strategy
-from reddwarf.common import cfg
+from reddwarf.common import cfg, utils
 
 from eventlet.green import subprocess
 
@@ -47,31 +47,28 @@ class RestoreRunner(Strategy):
             if hasattr(self, 'prepare_cmd') else None
         super(RestoreRunner, self).__init__()
 
-    def prepare(self):
-        if self.prepare_cmd:
-            self._run_prepare()
-
     def __enter__(self):
-        """Start up the process"""
-        self._run_restore()
+        """Return the runner"""
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Clean up everything."""
         if exc_type is None:
-            # See if the process reported an error
-            try:
-                err = self.process.stderr.read()
-                if err:
-                    raise RestoreError(err)
-            except OSError:
-                pass
-        # Make sure to terminate the process
+            utils.raise_if_process_errored(self.process, RestoreError)
+            if hasattr(self, 'prep_process'):
+                utils.raise_if_process_errored(self.prep_process, RestoreError)
+
+        # Make sure to terminate the processes
         try:
             self.process.terminate()
+            if hasattr(self, 'prep_process'):
+                self.prep_process.terminate()
         except OSError:
             # Already stopped
             pass
+
+    def restore(self):
+        return self._run_restore()
 
     def _run_restore(self):
         with self.restore_stream as stream:
@@ -86,8 +83,14 @@ class RestoreRunner(Strategy):
                 content_length += len(chunk)
                 chunk = stream.read(CHUNK_SIZE)
 
+        if self.prepare_cmd:
+            self._run_prepare()
+
+        return content_length
+
     def _run_prepare(self):
-        self.process = subprocess.Popen(self.prepare_cmd, shell=True,
-                                        stdin=subprocess.PIPE,
-                                        stderr=subprocess.PIPE)
-        self.pid = self.process.pid
+        self.prep_process = subprocess.Popen(self.prepare_cmd, shell=True,
+                                             stdin=subprocess.PIPE,
+                                             stderr=subprocess.PIPE)
+        self.prep_pid = self.prep_process.pid
+        self.prep_process.wait()

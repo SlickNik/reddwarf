@@ -34,6 +34,15 @@ BACKUP_CONTAINER = CONF.backup_swift_container
 
 
 class BackupAgent(object):
+
+    def _get_restore_runner(self, backup_type):
+        """Returns the RestoreRunner associated with this backup type."""
+        try:
+            runner = get_restore_strategy(backup_type, CONF.restore_namespace)
+        except ImportError:
+            raise UnknownBackupType("Unknown Backup type: %s" % backup_type)
+        return runner
+
     def execute_backup(self, context, backup_id, runner=RUNNER):
         LOG.debug("Searching for backup instance %s", backup_id)
         backup = DBBackup.find_by(id=backup_id)
@@ -72,31 +81,27 @@ class BackupAgent(object):
             raise BackupError(backup.note)
 
     def execute_restore(self, context, backup_id, restore_location):
-        LOG.debug("Searching for backup instance %s", backup_id)
+        LOG.debug("Finding backup %s to restore", backup_id)
         backup = DBBackup.find_by(id=backup_id)
-        storage_url = "/".join(backup.location.split('/')[:-2])
-        container = backup.location.split('/')[-2]
-        filename = backup.location.split('/')[-1]
 
+        LOG.debug("Getting Restore Runner of type %s", backup.backup_type)
         restore_runner = self._get_restore_runner(backup.backup_type)
 
-        swift_storage = get_storage_strategy(
+        LOG.debug("Getting Storage Strategy")
+        storage_strategy = get_storage_strategy(
             CONF.storage_strategy,
             CONF.storage_namespace)(context)
 
-        download_stream = swift_storage.load(context,
-                                             storage_url,
-                                             container,
-                                             filename)
+        LOG.debug("Preparing storage to download stream.")
+        download_stream = storage_strategy.load(context,
+                                                backup.location,
+                                                restore_runner.is_zipped)
 
         with restore_runner(restore_stream=download_stream,
-                            restore_location=restore_location) as restore:
-            restore.prepare()
-
-    def _get_restore_runner(self, backup_type):
-        """Returns the RestoreRunner associated with this backup type."""
-        try:
-            runner = get_restore_strategy(backup_type, CONF.restore_namespace)
-        except ImportError:
-            raise UnknownBackupType("Unknown Backup type: %s" % backup_type)
-        return runner
+                            restore_location=restore_location) as runner:
+            LOG.debug("Restoring instance from backup %s to %s",
+                      backup_id, restore_location)
+            content_size = runner.restore()
+            LOG.info("Restore from backup %s completed successfully to %s",
+                     backup_id, restore_location)
+            LOG.info("Restore size: %s", content_size)
