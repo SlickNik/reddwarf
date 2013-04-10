@@ -43,10 +43,13 @@ class RestoreRunner(Strategy):
     def __init__(self, restore_stream, **kwargs):
         self.restore_stream = restore_stream
         self.restore_cmd = self.restore_cmd % kwargs
+        self.prepare_cmd = self.prepare_cmd % kwargs \
+            if hasattr(self, 'prepare_cmd') else None
         super(RestoreRunner, self).__init__()
 
-    def execute_restore(self):
-        self._run_restore()
+    def prepare(self):
+        if self.prepare_cmd:
+            self._run_prepare()
 
     def __enter__(self):
         """Start up the process"""
@@ -82,3 +85,9 @@ class RestoreRunner(Strategy):
                 self.process.stdin.write(chunk)
                 content_length += len(chunk)
                 chunk = stream.read(CHUNK_SIZE)
+
+    def _run_prepare(self):
+        self.process = subprocess.Popen(self.prepare_cmd, shell=True,
+                                        stdin=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
+        self.pid = self.process.pid

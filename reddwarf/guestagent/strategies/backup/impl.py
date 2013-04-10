@@ -45,9 +45,8 @@ class InnoBackupEx(base.BackupRunner):
 
     cmd = 'sudo innobackupex'\
           ' --stream=xbstream'\
-          ' --compress'\
-          ' /var/lib/mysql 2>/tmp/innobackupex.log'
+          ' /var/lib/mysql 2>/tmp/innobackupex.log | gzip'
 
     @property
     def manifest(self):
-        return '%s.xbstream' % self.filename
+        return '%s.xbstream.gz' % self.filename

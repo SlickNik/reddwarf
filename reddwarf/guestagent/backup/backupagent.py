@@ -71,7 +71,7 @@ class BackupAgent(object):
         if not success:
             raise BackupError(backup.note)
 
-    def execute_restore(self, context, backup_id):
+    def execute_restore(self, context, backup_id, restore_location):
         LOG.debug("Searching for backup instance %s", backup_id)
         backup = DBBackup.find_by(id=backup_id)
         storage_url = "/".join(backup.location.split('/')[:-2])
@@ -90,10 +90,8 @@ class BackupAgent(object):
                                              filename)
 
         with restore_runner(restore_stream=download_stream,
-                            restore_location="/var/lib/mysql") as restore:
-            pass
-
-        # Prepare step still needs to be run, if needed.
+                            restore_location=restore_location) as restore:
+            restore.prepare()
 
     def _get_restore_runner(self, backup_type):
         """Returns the RestoreRunner associated with this backup type."""
