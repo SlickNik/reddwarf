@@ -13,6 +13,9 @@
 #limitations under the License.
 
 import hashlib
+from reddwarf.common.context import ReddwarfContext
+from reddwarf.guestagent.strategies.restore.base import RestoreRunner
+from reddwarf.guestagent.strategies import restore
 import testtools
 from testtools.matchers import Equals, Is
 from webob.exc import HTTPNotFound
@@ -85,6 +88,20 @@ class MockSwift(object):
         location = '%s/%s/%s' % (self.url, save_location, stream.manifest)
         return True, 'w00t', 'fake-checksum', location
 
+    def load(self, context, storage_url, container, filename):
+        pass
+
+
+class MockRestoreRunner(object):
+
+    def __init__(self, restore_stream, restore_location):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 BACKUP_NS = 'reddwarf.guestagent.strategies.backup'
 
@@ -161,20 +178,26 @@ class BackupAgentTest(testtools.TestCase):
                 reports status
         """
         backup = mock(DBBackup)
+        backup.location = "/backup/location/123"
         backup.backup_type = 'InnoBackupEx'
+
+        when(backupagent).get_restore_strategy(
+            'InnoBackupEx', any()).thenReturn(MockRestoreRunner)
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backup).save().thenReturn(backup)
 
         agent = backupagent.BackupAgent()
 
-        self.assertRaises(NotImplementedError, agent.execute_restore,
-                          context=None, backup_id='123')
+        agent.execute_restore(ReddwarfContext(), '123')
 
     def test_restore_unknown(self):
         backup = mock(DBBackup)
+        backup = mock(DBBackup)
+        backup.location = "/backup/location/123"
         backup.backup_type = 'foo'
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
-        when(backup).save().thenReturn(backup)
+        when(backupagent).get_restore_strategy(
+            'foo', any()).thenRaise(ImportError)
 
         agent = backupagent.BackupAgent()
         self.assertRaises(UnknownBackupType, agent.execute_restore,

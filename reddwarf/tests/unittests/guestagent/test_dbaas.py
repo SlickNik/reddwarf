@@ -16,10 +16,12 @@ import os
 import __builtin__
 from random import randint
 import time
+import collections
 
 from mock import Mock, MagicMock
 from mockito import mock, when, any, unstub, verify, contains, never, matchers
 from mockito import inorder, verifyNoMoreInteractions
+from sqlalchemy.engine import ResultProxy
 from reddwarf.extensions.mysql.models import RootHistory
 import sqlalchemy
 import testtools
@@ -119,6 +121,46 @@ class DbaasTest(testtools.TestCase):
         dbaas.utils.execute = Mock(side_effect=ProcessExecutionError())
 
         self.assertFalse(dbaas.load_mysqld_options())
+
+
+class ResultSetStub(object):
+
+    def __init__(self, rows):
+        self._rows = rows
+
+    def __iter__(self):
+        return self._rows.__iter__()
+
+    # def next(self):
+    #     yield
+
+    @property
+    def rowcount(self):
+        return len(self._rows)
+
+    def __repr__(self):
+        return self._rows.__repr__()
+
+
+class MySqlAdminMockTest(testtools.TestCase):
+
+    def tearDown(self):
+        super(MySqlAdminMockTest, self).tearDown()
+        unstub()
+
+    def test_list_databases(self):
+        mock_conn = mock_admin_sql_connection()
+
+        when(mock_conn).execute(
+            TextClauseMatcher('schema_name as name')).thenReturn(
+                ResultSetStub([('db1', 'utf8', 'utf8_bin'),
+                               ('db2', 'utf8', 'utf8_bin'),
+                               ('db3', 'utf8', 'utf8_bin')]))
+
+        databases, next_marker = MySqlAdmin().list_databases(limit=10)
+
+        self.assertThat(next_marker, Is(None))
+        self.assertThat(len(databases), Is(3))
 
 
 class MySqlAdminTest(testtools.TestCase):
@@ -247,49 +289,6 @@ class MySqlAdminTest(testtools.TestCase):
             self.assertEquals(args[0].text.strip(), expected,
                               "Create user queries are not the same")
             self.assertEqual(2, dbaas.LocalSqlClient.execute.call_count)
-
-
-class EnableRootTest(MySqlAdminTest):
-    def setUp(self):
-        super(EnableRootTest, self).setUp()
-        self.origin_is_valid_user_name = models.MySQLUser._is_valid_user_name
-        self.mySqlAdmin = MySqlAdmin()
-
-    def tearDown(self):
-        super(EnableRootTest, self).tearDown()
-        models.MySQLUser._is_valid_user_name = self.origin_is_valid_user_name
-
-    def test_enable_root(self):
-        models.MySQLUser._is_valid_user_name =\
-            MagicMock(return_value=True)
-        self.mySqlAdmin.enable_root()
-        args_list = dbaas.LocalSqlClient.execute.call_args_list
-        args, keyArgs = args_list[0]
-
-        self.assertEquals(args[0].text.strip(), "CREATE USER :user@:host;",
-                          "Create user queries are not the same")
-        self.assertEquals(keyArgs['user'], 'root')
-        self.assertEquals(keyArgs['host'], '%')
-
-        args, keyArgs = args_list[1]
-        self.assertTrue("UPDATE mysql.user" in args[0].text)
-        args, keyArgs = args_list[2]
-        self.assertTrue("GRANT ALL PRIVILEGES ON *.*" in args[0].text)
-
-        self.assertEqual(3, dbaas.LocalSqlClient.execute.call_count)
-
-    def test_enable_root_failed(self):
-        models.MySQLUser._is_valid_user_name =\
-            MagicMock(return_value=False)
-        self.assertRaises(ValueError, self.mySqlAdmin.enable_root)
-
-    def test_is_root_enable(self):
-        self.mySqlAdmin.is_root_enabled()
-        args, _ = dbaas.LocalSqlClient.execute.call_args
-        expected = ("""SELECT User FROM mysql.user WHERE User = 'root' """
-                    """AND Host != 'localhost';""")
-        self.assertTrue(expected in args[0].text,
-                        "%s not in query." % expected)
 
     def test_list_databases(self):
         self.mySqlAdmin.list_databases()
@@ -694,6 +693,9 @@ class TextClauseMatcher(matchers.Matcher):
     def __init__(self, text):
         self.contains = contains(text)
 
+    def __repr__(self):
+        return "TextClause(%s)" % self.contains.sub
+
     def matches(self, arg):
         print "Matching", arg.text
         return self.contains.matches(arg.text)
@@ -845,19 +847,26 @@ class MySqlRootStatusTest(testtools.TestCase):
             TextClauseMatcher(
                 "User = 'root' AND Host != 'localhost'")).thenReturn(mock_rs)
 
-        self.assertThat(MySqlRootAccess().is_root_enabled(), Equals(False))
+        self.assertThat(MySqlRootAccess.is_root_enabled(), Equals(False))
 
     def test_enable_root(self):
         mock_conn = mock_admin_sql_connection()
         when(mock_conn).execute(any()).thenReturn(None)
         # invocation
-        user_ser = MySqlRootAccess().enable_root()
+        user_ser = MySqlRootAccess.enable_root()
         # verification
         self.assertThat(user_ser, Not(Is(None)))
-        verify(mock_conn).execute(TextClauseMatcher('GRANT'))
-        verify(mock_conn).execute(TextClauseMatcher('UPDATE'))
+        verify(mock_conn).execute(TextClauseMatcher('CREATE USER'),
+                                  user='root', host='%')
+        verify(mock_conn).execute(TextClauseMatcher(
+            'GRANT ALL PRIVILEGES ON *.*'))
+        verify(mock_conn).execute(TextClauseMatcher('UPDATE mysql.user'))
 
-    def test_set_root_enabled_status(self):
+    def test_enable_root_failed(self):
+        when(models.MySQLUser)._is_valid_user_name(any()).thenReturn(False)
+        self.assertRaises(ValueError, MySqlAdmin().enable_root)
+
+    def test_report_root_enabled(self):
         mock_db_api = mock()
         when(reddwarf.extensions.mysql.models).get_db_api().thenReturn(
             mock_db_api)
@@ -865,7 +874,7 @@ class MySqlRootStatusTest(testtools.TestCase):
         root_history = RootHistory('x', 'root')
         when(mock_db_api).save(any(RootHistory)).thenReturn(root_history)
         # invocation
-        history = MySqlRootAccess().report_root_enabled(ReddwarfContext())
+        history = MySqlRootAccess.report_root_enabled(ReddwarfContext())
         # verification
         self.assertThat(history, Is(root_history))
         verify(mock_db_api).save(any(RootHistory))

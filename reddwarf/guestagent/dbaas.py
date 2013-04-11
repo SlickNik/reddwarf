@@ -911,6 +911,7 @@ class MySqlRootAccess(object):
         user.host = "%"
         user.password = generate_random_password()
         with LocalSqlClient(get_engine()) as client:
+            print client
             try:
                 cu = query.CreateUser(user.name, host=user.host)
                 t = text(str(cu))
@@ -920,6 +921,7 @@ class MySqlRootAccess(object):
                 # TODO(rnirmal): More fine grained error checking later on
                 LOG.debug(err)
         with LocalSqlClient(get_engine()) as client:
+            print client
             uu = query.UpdateUser(user.name, host=user.host,
                                   clear=user.password)
             t = text(str(uu))
