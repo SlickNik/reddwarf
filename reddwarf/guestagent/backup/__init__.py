@@ -15,7 +15,7 @@ def backup(context, backup_id):
     return AGENT.execute_backup(context, backup_id)
 
 
-def restore(context, backup_id):
+def restore(context, backup_id, restore_location):
     """
     Main entry point for restoring a backup based on the given backup id.  This
     will transfer backup data to this instance an will carry out the
@@ -24,4 +24,4 @@ def restore(context, backup_id):
     :param context:     the context token which contains the users details
     :param backup_id:   the id of the persisted backup object
     """
-    return AGENT.execute_restore(context, backup_id)
+    return AGENT.execute_restore(context, backup_id, restore_location)

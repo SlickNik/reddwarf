@@ -28,6 +28,7 @@ from reddwarf.db.models import DatabaseModelBase
 from reddwarf.guestagent.backup import backupagent
 from reddwarf.guestagent.strategies.backup.base import BackupRunner
 from reddwarf.guestagent.strategies.backup.base import UnknownBackupType
+from reddwarf.guestagent.strategies.storage.base import Storage
 
 
 def create_fake_data():
@@ -92,7 +93,26 @@ class MockSwift(object):
         pass
 
 
-class MockRestoreRunner(object):
+class MockStorage(Storage):
+
+    def __init__(self, context):
+        super(MockStorage, self).__init__()
+        pass
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def load(self, context, location, is_zipped):
+        pass
+
+    def save(self, save_location, stream):
+        pass
+
+    def is_enabled(self):
+        return True
+
+
+class MockRestoreRunner(RestoreRunner):
 
     def __init__(self, restore_stream, restore_location):
         pass
@@ -102,6 +122,12 @@ class MockRestoreRunner(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
+
+    def restore(self):
+        pass
+
+    def is_zipped(self):
+        return False
 
 BACKUP_NS = 'reddwarf.guestagent.strategies.backup'
 
@@ -181,6 +207,10 @@ class BackupAgentTest(testtools.TestCase):
         backup.location = "/backup/location/123"
         backup.backup_type = 'InnoBackupEx'
 
+        mock_storage = mock(Storage)
+        when(backupagent).get_storage_strategy(any(), any()).thenReturn(
+            MockStorage)
+
         when(backupagent).get_restore_strategy(
             'InnoBackupEx', any()).thenReturn(MockRestoreRunner)
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
@@ -188,7 +218,7 @@ class BackupAgentTest(testtools.TestCase):
 
         agent = backupagent.BackupAgent()
 
-        agent.execute_restore(ReddwarfContext(), '123')
+        agent.execute_restore(ReddwarfContext(), '123', '/var/lib/mysql')
 
     def test_restore_unknown(self):
         backup = mock(DBBackup)
@@ -201,4 +231,5 @@ class BackupAgentTest(testtools.TestCase):
 
         agent = backupagent.BackupAgent()
         self.assertRaises(UnknownBackupType, agent.execute_restore,
-                          context=None, backup_id='123')
+                          context=None, backup_id='123',
+                          restore_location='/var/lib/mysql')

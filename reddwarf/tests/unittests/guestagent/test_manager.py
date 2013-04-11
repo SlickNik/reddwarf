@@ -184,7 +184,7 @@ class GuestAgentManagerTest(testtools.TestCase):
         verify(VolumeDevice, times=(COUNT * SEC_COUNT)).migrate_data(any())
         verify(dbaas.MySqlApp, times=(COUNT * SEC_COUNT)).start_mysql()
         if backup_id:
-            verify(backup).restore(self.context, backup_id)
+            verify(backup).restore(self.context, backup_id, '/var/lib/mysql')
         verify(dbaas.MySqlApp).install_if_needed()
         verify(dbaas.MySqlApp).secure('2048', keep_root=is_root_enabled)
         verify(dbaas.MySqlAdmin, never).create_database()

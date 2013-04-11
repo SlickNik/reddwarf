@@ -1,12 +1,15 @@
+from reddwarf.common import cfg
 from reddwarf.guestagent import dbaas, backup
 from reddwarf.guestagent import volume
-from reddwarf.guestagent.volume import VolumeDevice
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common import periodic_task
 from reddwarf.openstack.common.gettextutils import _
 
 import os
+
 LOG = logging.getLogger(__name__)
+
+CONF = cfg.CONF
 
 MYSQL_BASE_DIR = "/var/lib/mysql"
 
@@ -86,12 +89,12 @@ class Manager(periodic_task.PeriodicTasks):
             device = volume.VolumeDevice(device_path)
             device.format()
             #if a /var/lib/mysql folder exists, back it up.
-            if os.path.exists(MYSQL_BASE_DIR):
+            if os.path.exists(CONF.mount_point):
                 #stop and do not update database
                 app.stop_mysql()
                 restart_mysql = True
                 #rsync exiting data
-                device.migrate_data(MYSQL_BASE_DIR)
+                device.migrate_data(CONF.mount_point)
             #mount the volume
             device.mount(mount_point)
             LOG.debug(_("Mounted the volume."))
@@ -99,7 +102,7 @@ class Manager(periodic_task.PeriodicTasks):
             if restart_mysql:
                 app.start_mysql()
         app.install_if_needed()
-        keep_root = self._perform_restore(backup_id, context, MYSQL_BASE_DIR)
+        keep_root = self._perform_restore(backup_id, context, CONF.mount_point)
         LOG.info(_("Securing mysql now."))
         app.secure(memory_mb, keep_root=keep_root)
 

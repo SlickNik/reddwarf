@@ -21,7 +21,7 @@ from reddwarf.common import utils
 from eventlet.green import subprocess
 import zlib
 
-UNZIPPER = zlib.decompressobj(16+zlib.MAX_WBITS)
+UNZIPPER = zlib.decompressobj(16 + zlib.MAX_WBITS)
 LOG = logging.getLogger(__name__)
 
 
