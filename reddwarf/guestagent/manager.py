@@ -65,10 +65,10 @@ class Manager(periodic_task.PeriodicTasks):
     def is_root_enabled(self, context):
         return dbaas.MySqlAdmin().is_root_enabled()
 
-    def _perform_restore(self, backup_id, context):
+    def _perform_restore(self, backup_id, context, restore_location):
         if backup_id:
             LOG.info(_("Restoring database from backup %s" % backup_id))
-            backup.restore(context, backup_id)
+            backup.restore(context, backup_id, restore_location)
             LOG.info(_("Restored database"))
             if self.is_root_enabled(context):
                 dbaas.MySqlAdmin().report_root_enabled(context)
@@ -99,7 +99,7 @@ class Manager(periodic_task.PeriodicTasks):
             if restart_mysql:
                 app.start_mysql()
         app.install_if_needed()
-        keep_root = self._perform_restore(backup_id, context)
+        keep_root = self._perform_restore(backup_id, context, MYSQL_BASE_DIR)
         LOG.info(_("Securing mysql now."))
         app.secure(memory_mb, keep_root=keep_root)
 
