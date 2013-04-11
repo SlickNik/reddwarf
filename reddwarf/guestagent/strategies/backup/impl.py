@@ -28,7 +28,6 @@ class MySQLDump(base.BackupRunner):
     cmd = '/usr/bin/mysqldump'\
           ' --all-databases'\
           ' --opt'\
-          ' --compact'\
           '--password=%(password)s'\
           ' -u %(user)s'\
           ' | gzip'
