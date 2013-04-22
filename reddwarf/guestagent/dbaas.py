@@ -330,7 +330,7 @@ class MySqlAdmin(object):
 
     def change_passwords(self, users):
         """Change the passwords of one or more existing users."""
-        LOG.debug("Changing the password of some users.""")
+        LOG.debug("Changing the password of some users.")
         LOG.debug("Users is %s" % users)
         with LocalSqlClient(get_engine()) as client:
             for item in users:

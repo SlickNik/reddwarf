@@ -94,7 +94,8 @@ class Manager(periodic_task.PeriodicTasks):
                 app.stop_mysql()
                 restart_mysql = True
                 #rsync exiting data
-                device.migrate_data(CONF.mount_point)
+                if not backup_id:
+                    device.migrate_data(CONF.mount_point)
             #mount the volume
             device.mount(mount_point)
             LOG.debug(_("Mounted the volume."))

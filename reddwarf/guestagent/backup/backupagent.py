@@ -16,7 +16,7 @@
 
 import logging
 from reddwarf.backup.models import DBBackup, BackupState
-from reddwarf.common import cfg
+from reddwarf.common import cfg, utils
 from reddwarf.guestagent.dbaas import ADMIN_USER_NAME
 from reddwarf.guestagent.dbaas import get_auth_password
 from reddwarf.guestagent.strategies.backup.base import \
@@ -81,6 +81,9 @@ class BackupAgent(object):
             raise BackupError(backup.note)
 
     def execute_restore(self, context, backup_id, restore_location):
+        LOG.debug("Cleaning out restore location: %s", restore_location)
+        utils.execute('sudo rm -rf %s/*' % restore_location)
+
         LOG.debug("Finding backup %s to restore", backup_id)
         backup = DBBackup.find_by(id=backup_id)
 
