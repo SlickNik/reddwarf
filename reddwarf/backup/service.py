@@ -78,7 +78,6 @@ class BackupsController(wsgi.Controller):
                                                  backup_id=id)
         self._verify_swift_auth_token(context)
         api.API(context).delete_backup(id)
-        Backup.delete(id)
         return wsgi.Result(None, 202)
 
     def _verify_swift_auth_token(self, context):

@@ -26,6 +26,10 @@ from reddwarf.common.remote import create_dns_client
 from reddwarf.common.remote import create_nova_client
 from reddwarf.common.remote import create_nova_volume_client
 from reddwarf.common.remote import create_swift_client
+<<<<<<< HEAD
+=======
+from swiftclient.client import ClientException
+>>>>>>> changing swift container structure - segments are stored in a separate container
 from reddwarf.common.utils import poll_until
 from reddwarf.instance import models as inst_models
 from reddwarf.instance.models import BuiltInstance
@@ -442,10 +446,33 @@ class BackupTasks(object):
         backup = Backup.get_by_id(backup_id)
         filename = backup.location[backup.location.rfind("/") + 1:]
         client = create_swift_client(context)
-        client.delete_object(CONF.backup_swift_container, filename)
-        for obj in client.get_container(filename + "_segments")[1]:
-            client.delete_object(filename + "_segments", obj['name'])
-        client.delete_container(filename + "_segments")
+        try:
+            client.delete_object(CONF.backup_swift_container, filename)
+        except ClientException as e:
+            LOG.exception("Exception deleting manifest object: " +
+                          "%s from swift. Exception details: %s"
+                          % (backup.location, e))
+        try:
+            for obj in client.get_container(filename + "_segments")[1]:
+                try:
+                    client.delete_object(filename + "_segments", obj['name'])
+                except ClientException as e:
+                    LOG.exception("Exception deleting segment object: " +
+                                  "%s from swift. Details: %s"
+                                  % (filename + "_segments/" +
+                                     obj['name'], e))
+        except ClientException as e:
+            LOG.exception("Exception browsing container:  " +
+                          "%s in swift. Details: %s" %
+                          (filename + "_segments", e))
+        try:
+            client.delete_container(filename + "_segments")
+        except ClientException as e:
+            LOG.exception("Exception deleting container: " +
+                          "%s from swift. Details: %s"
+                          % (filename + "_segments", e))
+        Backup.delete(backup_id)
+        # todo: do we want to mark as "corrupted" if anthing above fails?
 
 
 class ResizeActionBase(object):
