@@ -25,6 +25,7 @@ from reddwarf.common.exception import ReddwarfError
 from reddwarf.common.remote import create_dns_client
 from reddwarf.common.remote import create_nova_client
 from reddwarf.common.remote import create_nova_volume_client
+from reddwarf.common.remote import create_swift_client
 from reddwarf.common.utils import poll_until
 from reddwarf.instance import models as inst_models
 from reddwarf.instance.models import BuiltInstance
@@ -35,7 +36,7 @@ from reddwarf.instance.models import ServiceStatuses
 from reddwarf.instance.views import get_ip_address
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
-
+from reddwarf.backup.models import Backup
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -436,9 +437,15 @@ class BuiltInstanceTasks(BuiltInstance):
 class BackupTasks(object):
 
     @classmethod
-    def delete_backup(cls, backup_id):
+    def delete_backup(cls, context, backup_id):
         #delete backup from swift
-        pass
+        backup = Backup.get_by_id(backup_id)
+        filename = backup.location[backup.location.rfind("/") + 1:]
+        client = create_swift_client(context)
+        client.delete_object(CONF.backup_swift_container, filename)
+        for obj in client.get_container(filename + "_segments")[1]:
+            client.delete_object(filename + "_segments", obj['name'])
+        client.delete_container(filename + "_segments")
 
 
 class ResizeActionBase(object):

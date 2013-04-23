@@ -46,12 +46,14 @@ class SwiftStorage(base.Storage):
 
         # Create the container (save_location) if it doesn't already exist
         self.container_name = save_location
+        self.segments_container_name = stream.manifest + "_segments"
         self.connection.put_container(self.container_name)
+        self.connection.put_container(self.segments_container_name)
 
         # Read from the stream and write to the container in swift
         while not stream.end_of_file:
             segment = stream.segment
-            etag = self.connection.put_object(self.container_name,
+            etag = self.connection.put_object(self.segments_container_name,
                                               segment,
                                               stream)
 
@@ -66,7 +68,8 @@ class SwiftStorage(base.Storage):
             location = "%s/%s/%s" % (url, self.container_name, stream.manifest)
 
             # Create the manifest file
-            headers = {'X-Object-Manifest': stream.prefix}
+            headers = {'X-Object-Manifest': self.segments_container_name +
+                                       "/" + stream.prefix}
             self.connection.put_object(self.container_name,
                                        stream.manifest,
                                        contents='',
