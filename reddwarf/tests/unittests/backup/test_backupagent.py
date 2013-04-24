@@ -13,13 +13,14 @@
 #limitations under the License.
 
 import hashlib
+from reddwarf.common import utils
 from reddwarf.common.context import ReddwarfContext
 from reddwarf.guestagent.strategies.restore.base import RestoreRunner
 from reddwarf.guestagent.strategies import restore
 import testtools
 from testtools.matchers import Equals, Is
 from webob.exc import HTTPNotFound
-from mockito import when, verify, unstub, mock, any
+from mockito import when, verify, unstub, mock, any, contains
 
 from reddwarf.backup.models import DBBackup
 from reddwarf.backup.models import BackupState
@@ -207,7 +208,7 @@ class BackupAgentTest(testtools.TestCase):
         backup.location = "/backup/location/123"
         backup.backup_type = 'InnoBackupEx'
 
-        mock_storage = mock(Storage)
+        when(utils).execute(contains('sudo rm -rf')).thenReturn(None)
         when(backupagent).get_storage_strategy(any(), any()).thenReturn(
             MockStorage)
 
@@ -225,6 +226,7 @@ class BackupAgentTest(testtools.TestCase):
         backup = mock(DBBackup)
         backup.location = "/backup/location/123"
         backup.backup_type = 'foo'
+        when(utils).execute(contains('sudo rm -rf')).thenReturn(None)
         when(DatabaseModelBase).find_by(id='123').thenReturn(backup)
         when(backupagent).get_restore_strategy(
             'foo', any()).thenRaise(ImportError)

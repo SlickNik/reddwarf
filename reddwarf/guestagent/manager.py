@@ -24,12 +24,12 @@ class Manager(periodic_task.PeriodicTasks):
     def change_passwords(self, context, users):
         return dbaas.MySqlAdmin().change_passwords(users)
 
-    def create_database(self, databases):
+    def create_database(self, context, databases):
         if not databases or len(databases) == 0:
             return
         dbaas.MySqlAdmin().create_database(databases)
 
-    def create_user(self, users):
+    def create_user(self, context, users):
         if not users or len(users) == 0:
             return
         dbaas.MySqlAdmin().create_user(users)
@@ -107,8 +107,8 @@ class Manager(periodic_task.PeriodicTasks):
         LOG.info(_("Securing mysql now."))
         app.secure(memory_mb, keep_root=keep_root)
 
-        self.create_database(databases)
-        self.create_user(users)
+        self.create_database(context, databases)
+        self.create_user(context, users)
         LOG.info('"prepare" call has finished.')
 
     def restart(self, context):

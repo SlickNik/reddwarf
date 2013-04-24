@@ -68,8 +68,9 @@ class SwiftStorage(base.Storage):
             location = "%s/%s/%s" % (url, self.container_name, stream.manifest)
 
             # Create the manifest file
-            headers = {'X-Object-Manifest': self.segments_container_name +
-                                       "/" + stream.prefix}
+            headers = {
+                'X-Object-Manifest':
+                self.segments_container_name + "/" + stream.prefix}
             self.connection.put_object(self.container_name,
                                        stream.manifest,
                                        contents='',

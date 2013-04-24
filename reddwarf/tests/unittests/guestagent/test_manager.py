@@ -44,32 +44,32 @@ class GuestAgentManagerTest(testtools.TestCase):
 
     def test_create_database(self):
         when(dbaas.MySqlAdmin).create_database(['db1']).thenReturn(None)
-        self.manager.create_database(['db1'])
+        self.manager.create_database(self.context, ['db1'])
         verify(dbaas.MySqlAdmin).create_database(['db1'])
 
     def test_create_database_empty(self):
         when(dbaas.MySqlAdmin).create_database(any()).thenReturn(None)
-        self.manager.create_database([])
+        self.manager.create_database(self.context, [])
         verify(dbaas.MySqlAdmin, never).create_database(any())
 
     def test_create_database_none(self):
         when(dbaas.MySqlAdmin).create_database(any()).thenReturn(None)
-        self.manager.create_database(None)
+        self.manager.create_database(self.context, None)
         verify(dbaas.MySqlAdmin, never).create_database(any())
 
     def test_create_user(self):
         when(dbaas.MySqlAdmin).create_user(['user1']).thenReturn(None)
-        self.manager.create_user(['user1'])
+        self.manager.create_user(self.context, ['user1'])
         verify(dbaas.MySqlAdmin).create_user(['user1'])
 
     def test_create_user_empty(self):
         when(dbaas.MySqlAdmin).create_user(any()).thenReturn(None)
-        self.manager.create_user([])
+        self.manager.create_user(self.context, [])
         verify(dbaas.MySqlAdmin, never).create_user(any())
 
     def test_create_user_none(self):
         when(dbaas.MySqlAdmin).create_user(any()).thenReturn(None)
-        self.manager.create_user(None)
+        self.manager.create_user(self.context, None)
         verify(dbaas.MySqlAdmin, never).create_user(any())
 
     def test_delete_database(self):
@@ -140,15 +140,10 @@ class GuestAgentManagerTest(testtools.TestCase):
     def _prepare_dynamic(self, device_path='/dev/vdb', is_mysql_installed=True,
                          backup_id=None, is_root_enabled=False):
 
-        if device_path:
-            COUNT = 1
-        else:
-            COUNT = 0
-
-        if is_mysql_installed:
-            SEC_COUNT = 1
-        else:
-            SEC_COUNT = 0
+        # covering all outcomes is starting to cause trouble here
+        COUNT = 1 if device_path else 0
+        SEC_COUNT = 1 if is_mysql_installed else 0
+        migrate_count = 1 * COUNT if not backup_id else 0
 
         # TODO (juice) this should stub an instance of the MySqlAppStatus
         mock_status = mock()
@@ -181,7 +176,8 @@ class GuestAgentManagerTest(testtools.TestCase):
 
         verify(VolumeDevice, times=COUNT).format()
         verify(dbaas.MySqlApp, times=(COUNT * SEC_COUNT)).stop_mysql()
-        verify(VolumeDevice, times=(COUNT * SEC_COUNT)).migrate_data(any())
+        verify(VolumeDevice, times=(migrate_count * SEC_COUNT)).migrate_data(
+            any())
         verify(dbaas.MySqlApp, times=(COUNT * SEC_COUNT)).start_mysql()
         if backup_id:
             verify(backup).restore(self.context, backup_id, '/var/lib/mysql')
