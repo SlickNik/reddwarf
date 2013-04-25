@@ -37,7 +37,7 @@ from reddwarf.instance.models import ServiceStatuses
 from reddwarf.instance.views import get_ip_address
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
-from reddwarf.backup.models import Backup
+from reddwarf.backup.models import Backup, BackupState
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -443,33 +443,50 @@ class BackupTasks(object):
         backup = Backup.get_by_id(backup_id)
         filename = backup.location[backup.location.rfind("/") + 1:]
         client = create_swift_client(context)
+        had_issues = False
         try:
             client.delete_object(CONF.backup_swift_container, filename)
+            manifest_not_deleted = False
         except ClientException as e:
+            had_issues = True
             LOG.exception("Exception deleting manifest object: " +
                           "%s from swift. Exception details: %s"
                           % (backup.location, e))
         try:
             for obj in client.get_container(filename + "_segments")[1]:
-                try:
                     client.delete_object(filename + "_segments", obj['name'])
-                except ClientException as e:
-                    LOG.exception("Exception deleting segment object: " +
-                                  "%s from swift. Details: %s"
-                                  % (filename + "_segments/" +
-                                     obj['name'], e))
         except ClientException as e:
+            had_issues = True
             LOG.exception("Exception browsing container:  " +
                           "%s in swift. Details: %s" %
                           (filename + "_segments", e))
         try:
             client.delete_container(filename + "_segments")
+            container_not_deleted = False
         except ClientException as e:
+            had_issues = True
             LOG.exception("Exception deleting container: " +
                           "%s from swift. Details: %s"
                           % (filename + "_segments", e))
-        Backup.delete(backup_id)
-        # todo: do we want to mark as "corrupted" if anthing above fails?
+        if had_issues:
+            try:
+                client.head_container(filename + "_segments")
+            # if we get to the next line, it means the container wasn't deleted
+                container_not_deleted = True
+            except ClientException as e:
+                container_not_deleted = False
+            try:
+                client.head_object(CONF.backup_swift_container, filename)
+            # if we get to the next line, it means the manifest wasn't deleted
+                manifest_not_deleted = True
+            except ClientException as e:
+                manifest_not_deleted = False
+        if manifest_not_deleted or container_not_deleted:
+            LOG.error("Failed to delete swift objects")
+            backup.state = BackupState.FAILED
+        else:
+#            Backup.delete(backup_id)
+            pass
 
 
 class ResizeActionBase(object):
