@@ -26,10 +26,7 @@ from reddwarf.common.remote import create_dns_client
 from reddwarf.common.remote import create_nova_client
 from reddwarf.common.remote import create_nova_volume_client
 from reddwarf.common.remote import create_swift_client
-<<<<<<< HEAD
-=======
 from swiftclient.client import ClientException
->>>>>>> changing swift container structure - segments are stored in a separate container
 from reddwarf.common.utils import poll_until
 from reddwarf.instance import models as inst_models
 from reddwarf.instance.models import BuiltInstance

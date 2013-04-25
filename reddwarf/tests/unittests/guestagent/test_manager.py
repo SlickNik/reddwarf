@@ -156,7 +156,8 @@ class GuestAgentManagerTest(testtools.TestCase):
         when(dbaas.MySqlApp).start_mysql().thenReturn(None)
         when(dbaas.MySqlApp).install_if_needed().thenReturn(None)
         when(backup).restore(self.context, backup_id).thenReturn(None)
-        when(dbaas.MySqlApp).secure().thenReturn(None)
+        when(dbaas.MySqlApp).secure(any()).thenReturn(None)
+        when(dbaas.MySqlApp).secure_root().thenReturn(None)
         when(dbaas.MySqlApp).is_installed().thenReturn(is_mysql_installed)
         when(dbaas.MySqlAdmin).is_root_enabled().thenReturn(is_root_enabled)
         when(dbaas.MySqlAdmin).create_user().thenReturn(None)
@@ -182,10 +183,12 @@ class GuestAgentManagerTest(testtools.TestCase):
         if backup_id:
             verify(backup).restore(self.context, backup_id, '/var/lib/mysql')
         verify(dbaas.MySqlApp).install_if_needed()
-        verify(dbaas.MySqlApp).secure('2048', keep_root=is_root_enabled)
+        verify(dbaas.MySqlApp).secure('2048')
         verify(dbaas.MySqlAdmin, never).create_database()
         verify(dbaas.MySqlAdmin, never).create_user()
         times_report = 1 if is_root_enabled else 0
+        times_reset_root = 1 if not backup_id or not is_root_enabled else 0
+        verify(dbaas.MySqlApp, times=times_reset_root).secure_root()
         verify(dbaas.MySqlAdmin, times=times_report).report_root_enabled(
             self.context)
 

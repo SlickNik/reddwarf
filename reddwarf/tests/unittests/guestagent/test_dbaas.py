@@ -641,7 +641,7 @@ class MySqlAppInstallTest(MySqlAppTest):
         self.assertTrue(self.mySqlApp.stop_mysql.called)
         self.assertTrue(self.mySqlApp._write_mycnf.called)
         self.assertTrue(self.mySqlApp.start_mysql.called)
-        self.assert_reported_status(ServiceStatuses.RUNNING)
+        self.assert_reported_status(ServiceStatuses.NEW)
 
     def test_install_install_error(self):
 
@@ -770,12 +770,11 @@ class MySqlAppMockTest(testtools.TestCase):
         # invocation
         app.secure(2048)
         # verification
-        verify(mock_conn, atleast=4).execute(any())
+        verify(mock_conn, atleast=3).execute(any())
         inorder.verify(mock_status).wait_for_real_status_to_change_to(
             ServiceStatuses.SHUTDOWN, any(), any())
         inorder.verify(mock_status).wait_for_real_status_to_change_to(
             ServiceStatuses.RUNNING, any(), any())
-        inorder.verify(mock_status).end_install_or_restart()
 
     def test_secure_with_mycnf_error(self):
         mock_conn = mock_sql_connection()
@@ -793,7 +792,7 @@ class MySqlAppMockTest(testtools.TestCase):
 
         self.assertRaises(pkg.PkgPackageStateError, app.secure, 2048)
 
-        verify(mock_conn, atleast=4).execute(any())
+        verify(mock_conn, atleast=3).execute(any())
         inorder.verify(mock_status).wait_for_real_status_to_change_to(
             ServiceStatuses.SHUTDOWN, any(), any())
         verifyNoMoreInteractions(mock_status)
@@ -817,7 +816,7 @@ class MySqlAppMockTest(testtools.TestCase):
             any(), any(), any()).thenReturn(True)
         app = MySqlApp(mock_status)
 
-        app.secure(2048, True)
+        app.secure(2048)
         verify(mock_conn, never).execute(TextClauseMatcher('root'))
 
 

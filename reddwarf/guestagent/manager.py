@@ -73,10 +73,6 @@ class Manager(periodic_task.PeriodicTasks):
             LOG.info(_("Restoring database from backup %s" % backup_id))
             backup.restore(context, backup_id, restore_location)
             LOG.info(_("Restored database"))
-            if self.is_root_enabled(context):
-                dbaas.MySqlAdmin().report_root_enabled(context)
-                return True
-        return False
 
     def prepare(self, context, databases, memory_mb, users, device_path=None,
                 mount_point=None, backup_id=None):
@@ -103,10 +99,14 @@ class Manager(periodic_task.PeriodicTasks):
             if restart_mysql:
                 app.start_mysql()
         app.install_if_needed()
-        keep_root = self._perform_restore(backup_id, context, CONF.mount_point)
+        self._perform_restore(backup_id, context, CONF.mount_point)
         LOG.info(_("Securing mysql now."))
-        app.secure(memory_mb, keep_root=keep_root)
-
+        app.secure(memory_mb)
+        if backup_id and dbaas.MySqlAdmin().is_root_enabled():
+            dbaas.MySqlAdmin().report_root_enabled(context)
+        else:
+            app.secure_root()
+        app.complete_install_or_restart()
         self.create_database(context, databases)
         self.create_user(context, users)
         LOG.info('"prepare" call has finished.')

@@ -644,17 +644,16 @@ class MySqlApp(object):
             self._install_mysql()
         LOG.info(_("Dbaas install_if_needed complete"))
 
-    def secure(self, memory_mb, keep_root=False):
+    def complete_install_or_restart(self):
+        self.status.end_install_or_restart()
+
+    def secure(self, memory_mb):
         LOG.info(_("Generating admin password..."))
         admin_password = generate_random_password()
 
         engine = sqlalchemy.create_engine("mysql://root:@localhost:3306",
                                           echo=True)
         with LocalSqlClient(engine) as client:
-            LOG.info(_("Keep Root is set to %s" % keep_root))
-            if not keep_root:
-                self._generate_root_password(client)
-                self._remove_remote_root_access(client)
             self._remove_anonymous_user(client)
             self._create_admin_user(client, admin_password)
 
@@ -662,8 +661,15 @@ class MySqlApp(object):
         self._write_mycnf(memory_mb, admin_password)
         self.start_mysql()
 
-        self.status.end_install_or_restart()
         LOG.info(_("Dbaas secure complete."))
+
+    def secure_root(self):
+        engine = sqlalchemy.create_engine("mysql://root:@localhost:3306",
+                                          echo=True)
+        with LocalSqlClient(engine) as client:
+            LOG.info(_("Preserving root access from restore"))
+            self._generate_root_password(client)
+            self._remove_remote_root_access(client)
 
     def _install_mysql(self):
         """Install mysql server. The current version is 5.5"""
