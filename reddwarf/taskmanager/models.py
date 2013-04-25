@@ -485,8 +485,7 @@ class BackupTasks(object):
             LOG.error("Failed to delete swift objects")
             backup.state = BackupState.FAILED
         else:
-#            Backup.delete(backup_id)
-            pass
+            Backup.delete(backup_id)
 
 
 class ResizeActionBase(object):
