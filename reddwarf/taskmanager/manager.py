@@ -15,22 +15,13 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-#import traceback
-
-#from eventlet import greenthread
-
 from reddwarf.common import exception
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common import periodic_task
-#from reddwarf.openstack.common.rpc.common import UnsupportedRpcVersion
-#from reddwarf.openstack.common.gettextutils import _
 from reddwarf.taskmanager import models
-#from reddwarf.taskmanager.models import BuiltInstanceTasks
 from reddwarf.taskmanager.models import FreshInstanceTasks
 
-
 LOG = logging.getLogger(__name__)
-
 RPC_API_VERSION = "1.0"
 
 
@@ -74,10 +65,6 @@ class Manager(periodic_task.PeriodicTasks):
     def create_backup(self, context, backup_id, instance_id):
         instance_tasks = models.BuiltInstanceTasks.load(context, instance_id)
         instance_tasks.create_backup(backup_id)
-
-    def teardown_backup(self, context, instance_id):
-        instance_tasks = models.BuiltInstanceTasks.load(context, instance_id)
-        instance_tasks.teardown_backup()
 
     def create_instance(self, context, instance_id, name, flavor_id,
                         flavor_ram, image_id, databases, users, service_type,

@@ -27,7 +27,7 @@ class BackupView(object):
             "name": self.backup.name,
             "description": self.backup.description,
             "locationRef": self.backup.location,
-            "instanceRef": self.backup.instance_id,
+            "instance_id": self.backup.instance_id,
             "created": self.backup.created,
             "updated": self.backup.updated,
             "status": self.backup.state

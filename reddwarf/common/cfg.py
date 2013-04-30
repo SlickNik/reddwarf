@@ -83,6 +83,8 @@ common_opts = [
                help='default maximum volume size for an instance'),
     cfg.IntOpt('max_volumes_per_user', default=20,
                help='default maximum for total volume used by a tenant'),
+    cfg.IntOpt('max_backups_per_user', default=5,
+               help='default maximum number of backups created by a tenant'),
     cfg.StrOpt('quota_driver',
                default='reddwarf.quota.quota.DbQuotaDriver',
                help='default driver to use for quota checks'),

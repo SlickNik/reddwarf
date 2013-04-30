@@ -26,7 +26,6 @@ from reddwarf.extensions.mysql.common import populate_databases
 from reddwarf.extensions.mysql.common import populate_users
 from reddwarf.instance import models, views
 from reddwarf.backup.models import Backup as backup_model
-from reddwarf.backup.models import BackupState
 from reddwarf.backup import views as backup_views
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
@@ -204,15 +203,8 @@ class InstanceController(wsgi.Controller):
             volume_size = None
 
         if body['instance'].get('restorePoint', None) is not None:
-            backup_id = body['instance']['restorePoint']['backupId']
-            backup_info = backup_model.get_by_id(backup_id)
-            if not backup_info.state == BackupState.COMPLETED:
-                raise exception.BackupNotCompleteError(backup_id=backup_id)
-
-            # verify backup file exist in swift
-            location = backup_info.location
-            if not InstanceController._check_object_exist(context, location):
-                raise exception.BackupFileNotFound(location=location)
+            backupRef = body['instance']['restorePoint']['backupRef']
+            backup_id = utils.get_id_from_href(backupRef)
         else:
             backup_id = None
 

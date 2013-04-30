@@ -99,11 +99,6 @@ class API(ManagerAPI):
         LOG.debug("Making async call to delete backup: %s" % backup_id)
         self._cast("delete_backup", backup_id=backup_id)
 
-    def teardown_backup(self, instance_id):
-        LOG.debug("Making async call to teardown a backup for instance: %s" %
-                  instance_id)
-        self._cast("teardown_backup", instance_id=instance_id)
-
     def create_instance(self, instance_id, name, flavor_id, flavor_ram,
                         image_id, databases, users, service_type,
                         volume_size, security_groups, backup_id=None):

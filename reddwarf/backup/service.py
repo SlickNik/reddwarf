@@ -16,17 +16,18 @@
 #    under the License.
 
 from reddwarf.common import wsgi
-from reddwarf.common import exception
-from reddwarf.common.remote import create_swift_client
 from reddwarf.backup import views
-from reddwarf.backup.models import BackupState
 from reddwarf.backup.models import Backup
-from reddwarf.instance import models
-from reddwarf.taskmanager import api
-from swiftclient.client import ClientException
+from reddwarf.common import exception
+from reddwarf.common import cfg
+from reddwarf.openstack.common import log as logging
+from reddwarf.openstack.common.gettextutils import _
+
+CONF = cfg.CONF
+LOG = logging.getLogger(__name__)
 
 
-class BackupsController(wsgi.Controller):
+class BackupController(wsgi.Controller):
     """
     Controller for accessing backups in the OpenStack API.
     """
@@ -35,54 +36,42 @@ class BackupsController(wsgi.Controller):
         """
         Return all backups information for a tenant ID.
         """
+        LOG.debug("Listing Backups for tenant '%s'" % tenant_id)
         context = req.environ[wsgi.CONTEXT_KEY]
         backups = Backup.list(context)
         return wsgi.Result(views.BackupViews(backups).data(), 200)
 
-    def create(self, req, body, tenant_id):
+    def show(self, req, tenant_id, id):
+        """Return a single backup."""
+        LOG.info(_("Showing a backup for tenant '%s'") % tenant_id)
+        LOG.info(_("id : '%s'\n\n") % id)
+        backup = Backup.get_by_id(id)
+        return wsgi.Result(views.BackupView(backup).data(), 200)
 
+    def create(self, req, body, tenant_id):
+        LOG.debug("Creating a Backup for tenant '%s'" % tenant_id)
+        self._validate_create_body(body)
         context = req.environ[wsgi.CONTEXT_KEY]
         data = body['backup']
-        instance_id = data['instance']
-
-        # verify that the instance exist and cant perform actions
-        instance = models.Instance.load(context, instance_id)
-        instance.validate_can_perform_action()
-
-        # verify that no other backup for this instance is running
-        running_backups = [b
-                           for b in Backup.list_for_instance(instance_id)
-                           if b.state != BackupState.COMPLETED
-                           and b.state != BackupState.FAILED]
-        if len(running_backups) > 0:
-            raise exception.BackupAlreadyRunning(action='create',
-                                                 backup_id=running_backups[
-                                                     0].id)
-
-        self._verify_swift_auth_token(context)
-
-        backup = Backup.create(context, instance_id,
-                               data['name'], data['description'])
-        api.API(context).create_backup(backup.id, instance_id)
+        instance = data['instance']
+        name = data['name']
+        desc = data.get('description')
+        backup = Backup.create(context, instance, name, desc)
         return wsgi.Result(views.BackupView(backup).data(), 202)
 
     def delete(self, req, tenant_id, id):
-
+        LOG.debug("Delete Backup for tenant: %s, ID: %s" % (tenant_id, id))
         context = req.environ[wsgi.CONTEXT_KEY]
-
-        # verify that this backup is not running
-        backup = Backup.get_by_id(id)
-        if backup.state != BackupState.COMPLETED and backup.state != \
-                BackupState.FAILED:
-            raise exception.BackupAlreadyRunning(action='delete',
-                                                 backup_id=id)
-        self._verify_swift_auth_token(context)
-        api.API(context).delete_backup(id)
+        Backup.delete(context, id)
         return wsgi.Result(None, 202)
 
-    def _verify_swift_auth_token(self, context):
+    def _validate_create_body(self, body):
         try:
-            client = create_swift_client(context)
-            client.get_account()
-        except ClientException:
-            raise exception.SwiftAuthError(tenant_id=context.tenant)
+            body['backup']
+            body['backup']['name']
+            body['backup']['instance']
+        except KeyError as e:
+            LOG.error(_("Create Backup Required field(s) "
+                        "- %s") % e)
+            raise exception.ReddwarfError(
+                "Required element/key - %s was not specified" % e)

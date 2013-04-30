@@ -365,18 +365,7 @@ class BuiltInstanceTasks(BuiltInstance):
         action = MigrateAction(self)
         action.execute()
 
-    def teardown_backup(self):
-        # do a volume detach/delete
-        pass
-
     def create_backup(self, backup_id):
-        # create a temp volume
-        # nova list
-        # nova show
-        # check in progress - make sure no other snapshot creation in progress
-        # volume create
-        # volume attach
-        # call GA.create_backup()
         self.guest.create_backup(backup_id)
         LOG.debug("Called create_backup  %s " % self.id)
 

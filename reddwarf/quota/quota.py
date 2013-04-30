@@ -308,10 +308,27 @@ class QuotaEngine(object):
         return sorted(self._resources.keys())
 
 
+def run_with_quotas(tenant_id, deltas, f):
+    """ Quota wrapper """
+
+    from reddwarf.quota.quota import QUOTAS as quota_engine
+    reservations = quota_engine.reserve(tenant_id, **deltas)
+    result = None
+    try:
+        result = f()
+    except:
+        quota_engine.rollback(reservations)
+        raise
+    else:
+        quota_engine.commit(reservations)
+    return result
+
+
 QUOTAS = QuotaEngine()
 
 ''' Define all kind of resources here '''
 resources = [Resource(Resource.INSTANCES, 'max_instances_per_user'),
-             Resource(Resource.VOLUMES, 'max_volumes_per_user')]
+             Resource(Resource.VOLUMES, 'max_volumes_per_user'),
+             Resource(Resource.BACKUPS, 'max_backups_per_user')]
 
 QUOTAS.register_resources(resources)
