@@ -25,7 +25,7 @@ from reddwarf.common.exception import ReddwarfError
 from reddwarf.common.remote import create_dns_client
 from reddwarf.common.remote import create_nova_client
 from reddwarf.common.remote import create_nova_volume_client
-from reddwarf.common.remote import create_swift_client
+import reddwarf.common.remote as remote
 from swiftclient.client import ClientException
 from reddwarf.common.utils import poll_until
 from reddwarf.instance import models as inst_models
@@ -37,7 +37,8 @@ from reddwarf.instance.models import ServiceStatuses
 from reddwarf.instance.views import get_ip_address
 from reddwarf.openstack.common import log as logging
 from reddwarf.openstack.common.gettextutils import _
-from reddwarf.backup.models import Backup, BackupState
+import reddwarf.backup.models
+#import reddwarf.backup.models.Backup
 
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
@@ -429,9 +430,9 @@ class BackupTasks(object):
     @classmethod
     def delete_backup(cls, context, backup_id):
         #delete backup from swift
-        backup = Backup.get_by_id(backup_id)
+        backup = reddwarf.backup.models.Backup.get_by_id(backup_id)
         filename = backup.location[backup.location.rfind("/") + 1:]
-        client = create_swift_client(context)
+        client = remote.create_swift_client(context)
         had_issues = False
         try:
             client.delete_object(CONF.backup_swift_container, filename)
@@ -472,9 +473,9 @@ class BackupTasks(object):
                 manifest_not_deleted = False
         if manifest_not_deleted or container_not_deleted:
             LOG.error("Failed to delete swift objects")
-            backup.state = BackupState.FAILED
+            backup.state = reddwarf.backup.models.BackupState.FAILED
         else:
-            Backup.delete(backup_id)
+            reddwarf.backup.models.Backup.delete(backup_id)
 
 
 class ResizeActionBase(object):
